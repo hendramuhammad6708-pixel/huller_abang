@@ -9,7 +9,7 @@
 - Start PRs from / into the branch you worked on (`develop`, `features`, topic branches like `halaman-daftar-pelanggan`), not into `main`.
 - CI exists via GitHub Actions (no pre-commit hooks, no root lint/typecheck scripts): `backend-laravel.yml` runs Pint + tests on `develop`; `frontend-flutter.yml` runs `flutter analyze` + `flutter test` on `feature/fe-flutter`. Verify locally the same way before pushing.
 
-## Backend (`origin/develop`, Laravel 13 / PHP 8.3)
+## Backend (`origin/develop`, Laravel 13 / PHP 8.4+)
 
 Run all commands from `backend/`.
 
