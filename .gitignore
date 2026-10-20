@@ -5,3 +5,13 @@ build/
 dist/
 *.log
 .idea/
+
+# Flutter / Dart (artifact build & tooling)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/GeneratedPluginRegistrant.java
+**/GeneratedPluginRegistrant.kt
+**/local.properties
+**/ephemeral/
+coverage/
