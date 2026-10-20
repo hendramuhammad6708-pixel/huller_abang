@@ -1,0 +1,7 @@
+.env
+node_modules/
+vendor/
+build/
+dist/
+*.log
+.idea/
