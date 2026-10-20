@@ -36,12 +36,13 @@ class OperatorControllerTest extends TestCase
 
     public function test_operator_tidak_bisa_mengakses_crud(): void
     {
-        Sanctum::actingAs($this->buatOperator());
+        $operator = $this->buatOperator();
+        Sanctum::actingAs($operator);
 
         $this->getJson('/api/operators')->assertStatus(403);
         $this->postJson('/api/operators', [])->assertStatus(403);
-        $this->putJson('/api/operators/1', [])->assertStatus(403);
-        $this->deleteJson('/api/operators/1')->assertStatus(403);
+        $this->putJson('/api/operators/'.$operator->id, [])->assertStatus(403);
+        $this->deleteJson('/api/operators/'.$operator->id)->assertStatus(403);
     }
 
     public function test_tanpa_token_mendapat_401(): void
