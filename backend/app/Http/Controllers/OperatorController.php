@@ -11,11 +11,38 @@ use Illuminate\Validation\Rule;
 
 class OperatorController extends Controller
 {
-    public function index(): JsonResponse
+    // GET /api/operators?search=&aktif=&page=&limit=
+    public function index(Request $request): JsonResponse
     {
-        $daftarOperator = User::where('role', 'operator')->get();
+        $limit = min(max((int) $request->query('limit', 10), 1), 100);
+        $search = $request->query('search');
+        $aktif = $request->query('aktif');
 
-        return ApiResponse::sukses('Daftar operator', ['operators' => $daftarOperator]);
+        $query = User::where('role', 'operator');
+
+        if (is_string($search) && trim($search) !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama', 'like', '%'.trim($search).'%')
+                    ->orWhere('username', 'like', '%'.trim($search).'%');
+            });
+        }
+        if ($aktif === '1' || $aktif === 'true') {
+            $query->where('aktif', true);
+        } elseif ($aktif === '0' || $aktif === 'false') {
+            $query->where('aktif', false);
+        }
+
+        $hasil = $query->orderBy('nama')
+            ->paginate($limit, ['id', 'nama', 'username', 'aktif', 'created_at']);
+
+        return ApiResponse::sukses('Daftar operator', [
+            'items' => $hasil->items(),
+            'meta' => [
+                'page' => $hasil->currentPage(),
+                'limit' => $hasil->perPage(),
+                'total' => $hasil->total(),
+            ],
+        ]);
     }
 
     public function store(Request $request): JsonResponse

@@ -58,8 +58,38 @@ class OperatorControllerTest extends TestCase
 
         $respons = $this->getJson('/api/operators')->assertOk();
 
-        $this->assertCount(1, $respons->json('data.operators'));
-        $this->assertSame($operator->id, $respons->json('data.operators.0.id'));
+        $this->assertCount(1, $respons->json('data.items'));
+        $this->assertSame($operator->id, $respons->json('data.items.0.id'));
+        $this->assertSame(1, $respons->json('data.meta.total'));
+        $this->assertSame(1, $respons->json('data.meta.page'));
+    }
+
+    public function test_daftar_operator_terpaginasi_dan_bisa_dicari(): void
+    {
+        $this->buatOwner();
+        foreach (range(1, 12) as $i) {
+            $this->buatOperator(['nama' => 'Operator '.$i, 'username' => 'op'.$i]);
+        }
+        $this->buatOperator(['nama' => 'Sopir Gudang', 'username' => 'sopir', 'aktif' => false]);
+        Sanctum::actingAs(User::where('role', 'owner')->first());
+
+        // Paginasi: default 10 per halaman
+        $hal1 = $this->getJson('/api/operators')->assertOk();
+        $this->assertCount(10, $hal1->json('data.items'));
+        $this->assertSame(13, $hal1->json('data.meta.total'));
+
+        $hal2 = $this->getJson('/api/operators?page=2&limit=10')->assertOk();
+        $this->assertCount(3, $hal2->json('data.items'));
+        $this->assertSame(2, $hal2->json('data.meta.page'));
+
+        // Pencarian nama/username
+        $cari = $this->getJson('/api/operators?search=Sopir')->assertOk();
+        $this->assertCount(1, $cari->json('data.items'));
+        $this->assertSame('sopir', $cari->json('data.items.0.username'));
+
+        // Filter aktif/nonaktif
+        $nonaktif = $this->getJson('/api/operators?aktif=0')->assertOk();
+        $this->assertCount(1, $nonaktif->json('data.items'));
     }
 
     public function test_owner_menambah_operator_dengan_password_terhash(): void
