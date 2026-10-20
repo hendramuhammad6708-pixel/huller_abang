@@ -1,0 +1,55 @@
+name: backend-laravel
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  uji:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: huller_abang_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Siapkan PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql
+          coverage: none
+
+      - name: Instal dependensi Composer
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: Salin .env dan buat APP_KEY
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Periksa gaya kode (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Jalankan test
+        run: php artisan test
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_USERNAME: root
+          DB_PASSWORD: password
