@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Pelanggan extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes; // hapus aman: hanya mengisi kolom deleted_at
+
+    public const TIPE = ['pengepul', 'petani', 'milik_huller'];
 
     protected $table = 'pelanggan';
 
