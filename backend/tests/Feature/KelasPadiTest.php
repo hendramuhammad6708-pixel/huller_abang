@@ -3,13 +3,33 @@
 namespace Tests\Feature;
 
 use App\Models\KelasPadi;
+use App\Models\User;
 use Database\Seeders\KelasPadiSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class KelasPadiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->sebagaiOwner();
+    }
+
+    // Modul kelas padi terkunci: butuh token + role owner
+    private function sebagaiOwner(): void
+    {
+        Sanctum::actingAs(User::create([
+            'nama' => 'Pemilik Huller',
+            'username' => 'pemilik',
+            'password' => 'rahasia123',
+            'role' => 'owner',
+            'aktif' => true,
+        ]));
+    }
 
     public function test_daftar_berisi_kelas_1_dan_2(): void
     {

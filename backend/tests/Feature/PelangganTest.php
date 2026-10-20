@@ -3,12 +3,32 @@
 namespace Tests\Feature;
 
 use App\Models\Pelanggan;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PelangganTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->sebagaiOwner();
+    }
+
+    // Modul pelanggan terkunci: butuh token + role owner
+    private function sebagaiOwner(): void
+    {
+        Sanctum::actingAs(User::create([
+            'nama' => 'Pemilik Huller',
+            'username' => 'pemilik',
+            'password' => 'rahasia123',
+            'role' => 'owner',
+            'aktif' => true,
+        ]));
+    }
 
     private function data(array $ubah = []): array
     {

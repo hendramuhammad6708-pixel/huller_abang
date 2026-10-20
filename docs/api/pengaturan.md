@@ -3,7 +3,8 @@
 Dasar alamat: `http://localhost:8000/api`
 Kirim header `Accept: application/json` (dan `Content-Type: application/json` untuk PUT/POST).
 
-**Hak akses:** Owner. (Pemasangan pengecekan role menunggu `be-role-middleware`; sementara belum dikunci.)
+**Hak akses:** Owner. Semua endpoint modul ini butuh header `Authorization: Bearer <token>` (login dulu lewat `POST /api/login`).
+Tanpa token → `401`; token role operator → `403`.
 
 Format respons sama dengan dokumen `pelanggan.md`.
 
@@ -67,6 +68,8 @@ Respons `409` jika kelas sudah dipakai data padi masuk (berlaku mulai Sprint 2, 
 |---|---|
 | 200 | Berhasil |
 | 201 | Berhasil dibuat |
+| 401 | Token tidak diberikan / sesi berakhir |
+| 403 | Role bukan owner |
 | 404 | Data tidak ditemukan |
 | 409 | Konflik (kelas sedang dipakai) |
 | 422 | Isian tidak valid |

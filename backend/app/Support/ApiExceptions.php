@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,14 @@ class ApiExceptions
             }
 
             return ApiResponse::gagal('Data tidak valid', 422, $errors);
+        });
+
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::gagal('Sesi berakhir atau token tidak diberikan.', 401);
         });
 
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {

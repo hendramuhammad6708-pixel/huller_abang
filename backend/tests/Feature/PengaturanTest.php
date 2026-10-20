@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Database\Seeders\PengaturanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PengaturanTest extends TestCase
@@ -14,6 +16,19 @@ class PengaturanTest extends TestCase
     {
         parent::setUp();
         $this->seed(PengaturanSeeder::class);
+        $this->sebagaiOwner();
+    }
+
+    // Modul pengaturan terkunci: butuh token + role owner
+    private function sebagaiOwner(): void
+    {
+        Sanctum::actingAs(User::create([
+            'nama' => 'Pemilik Huller',
+            'username' => 'pemilik',
+            'password' => 'rahasia123',
+            'role' => 'owner',
+            'aktif' => true,
+        ]));
     }
 
     public function test_ambil_pengaturan_default(): void
