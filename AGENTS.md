@@ -17,14 +17,16 @@ Run all commands from `backend/`.
   - Needs a local MySQL DB named `huller_abang` (see `backend/.env.example`); frontend dev URL is `FRONTEND_URL=http://localhost:5173`.
 - Dev server: `composer dev` (= `php artisan dev`). Vite assets: `npm run dev` / `npm run build`.
 - Tests: `composer test` (runs `config:clear` then `artisan test`); focused: `php artisan test --filter=...` or `php artisan test tests/Feature/FooTest.php`.
-  - Tests use sqlite `:memory:` per `phpunit.xml` — MySQL is **not** needed for tests. Only placeholder `ExampleTest`s exist.
+  - Tests hit a **MySQL** database `huller_abang_test` per `phpunit.xml` (`DB_CONNECTION=mysql`) and use `RefreshDatabase` — create that empty DB first or every Feature test fails. Do not switch back to sqlite `:memory:` without team agreement.
 - Style: Laravel Pint is a dev dependency (`vendor/bin/pint`), default config (no `pint.json`).
 
 ### API conventions (must follow)
 
-- Every response goes through `App\Support\ApiResponse::sukses()` / `::gagal()` → `{success, message, data, errors?}`. Do not hand-roll error JSON.
-- JSON error rendering (422 validation as `errors: [{field, message}]`, 404, 405) is registered globally in `bootstrap/app.php` via `App\Support\ApiExceptions::daftarkan()`; it only applies to `api/*`.
+- Every response goes through `App\Support\ApiResponse::sukses()` / `::gagal()` → `{success, message, data, errors?}`. Do not hand-roll error JSON. Note `sukses()` takes `(message, data, status)`, `gagal()` takes `(message, status, errors)`.
+- JSON error rendering (422 validation as `errors: [{field, message}]`, 404, 405) is registered globally in `bootstrap/app.php` via `App\Support\ApiExceptions::daftarkan()`; it only applies to `api/*`. Web routes (`routes/web.php`) never return this shape.
 - New API modules add their route lines at the marked spot at the bottom of `backend/routes/api.php`. Health check: `GET /api/health`.
+- List endpoints must paginate (`page`/`limit`) and return `data.items` + `data.meta.total` (Sprint convention in root `README.md`).
+- Role guard is the middleware alias `role` (e.g. `role:owner`), implemented by `App\Http\Middleware\CheckRole` — it returns 403 via `ApiResponse::gagal`. Add new role-restricted routes with this alias, not ad-hoc checks.
 
 ### Schema facts that differ from Laravel defaults
 
