@@ -9,12 +9,15 @@ use Illuminate\Database\QueryException;
 
 class KelasPadiController extends Controller
 {
-    // GET /api/kelas-padi
+    // GET /api/kelas-padi (master kecil: seluruh data dikirim + meta.total)
     public function index()
     {
         $items = KelasPadi::orderBy('nama_kelas')->get(['id', 'nama_kelas']);
 
-        return ApiResponse::sukses('Daftar kelas padi', ['items' => $items]);
+        return ApiResponse::sukses('Daftar kelas padi', [
+            'items' => $items,
+            'meta' => ['total' => $items->count()],
+        ]);
     }
 
     // POST /api/kelas-padi

@@ -38,7 +38,8 @@ class KelasPadiTest extends TestCase
         $this->getJson('/api/kelas-padi')
             ->assertOk()
             ->assertJsonCount(2, 'data.items')
-            ->assertJsonPath('data.items.0.nama_kelas', 'Kelas 1');
+            ->assertJsonPath('data.items.0.nama_kelas', 'Kelas 1')
+            ->assertJsonPath('data.meta.total', 2);
     }
 
     public function test_seeder_tidak_membuat_data_dobel(): void

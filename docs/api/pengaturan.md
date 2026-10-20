@@ -38,12 +38,15 @@ Respons `422` jika nilai bukan angka, kurang dari 0, lebih dari 100, atau tidak 
 
 ## GET /api/kelas-padi — daftar kelas padi
 
-Respons `200`:
+Respons `200` (master kecil: seluruh data dikirim sekaligus):
 ```json
 {
   "success": true,
   "message": "Daftar kelas padi",
-  "data": { "items": [ { "id": 1, "nama_kelas": "Kelas 1" }, { "id": 2, "nama_kelas": "Kelas 2" } ] }
+  "data": {
+    "items": [ { "id": 1, "nama_kelas": "Kelas 1" }, { "id": 2, "nama_kelas": "Kelas 2" } ],
+    "meta": { "total": 2 }
+  }
 }
 ```
 
