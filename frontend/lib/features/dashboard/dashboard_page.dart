@@ -5,7 +5,10 @@ import '../../core/sesi.dart';
 
 /// Ringkasan dashboard owner dari GET /api/dashboard/summary.
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  /// Dipanggil saat tombol/kartu "Padi Masuk" diketuk (membuka form catat).
+  final VoidCallback? onCatatPadi;
+
+  const DashboardPage({super.key, this.onCatatPadi});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -60,6 +63,22 @@ class _DashboardPageState extends State<DashboardPage> {
               const Text('Ringkasan operasional huller hari ini',
                   style: TextStyle(color: AppColors.textMuted)),
               const SizedBox(height: 18),
+              if (widget.onCatatPadi != null) ...[
+                FilledButton.icon(
+                  key: const Key('btn-catat-padi'),
+                  onPressed: widget.onCatatPadi,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Catat Padi Masuk',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    minimumSize: const Size.fromHeight(56),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+                const SizedBox(height: 18),
+              ],
               if (_memuat)
                 const Padding(
                   padding: EdgeInsets.only(top: 60),
@@ -72,7 +91,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   icon: Icons.inventory_2_rounded,
                   judul: 'Padi Masuk',
                   nilai: '0 kg',
-                  catatan: 'Modul transaksi menyusul (Sprint 2)',
+                  catatan: 'Ketuk untuk mencatat padi masuk',
+                  onTap: widget.onCatatPadi,
                 ),
                 const SizedBox(height: 12),
                 _KartuStatistik(
@@ -177,18 +197,19 @@ class _KartuStatistik extends StatelessWidget {
   final String judul;
   final String nilai;
   final String catatan;
+  final VoidCallback? onTap;
 
   const _KartuStatistik({
     required this.icon,
     required this.judul,
     required this.nilai,
     required this.catatan,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -201,7 +222,12 @@ class _KartuStatistik extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -233,6 +259,8 @@ class _KartuStatistik extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }
