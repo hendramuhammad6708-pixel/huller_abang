@@ -6,7 +6,9 @@ import '../widgets/peringatan_card.dart';
 
 // Ringkasan dashboard owner dari API.
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  const DashboardPage({super.key, this.onCatatPadi});
+
+  final VoidCallback? onCatatPadi;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -21,6 +23,51 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _muat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _muat();
+  }
+
+  String _padiMasukNilai() {
+    if (_data == null) return '0 kg';
+    final pm = _data!['padi_masuk'];
+    double total = 0;
+    if (pm is Map) {
+      final v = pm['total_berat_kg'] ?? pm['total_berat'] ?? pm['berat'];
+      if (v is num) total = v.toDouble();
+    }
+    if (total == 0) {
+      final v = _data!['total_berat_basah_kg'] ??
+          _data!['total_berat_kg'] ??
+          _data!['berat_padi_masuk'] ??
+          _data!['total_padi_masuk'];
+      if (v is num) total = v.toDouble();
+    }
+    return '${_fmtKg(total)} kg';
+  }
+
+  String _padiMasukCatatan() {
+    if (_data == null) return 'Belum ada transaksi padi masuk';
+    int jumlah = 0;
+    final pm = _data!['padi_masuk'];
+    if (pm is Map) {
+      final v = pm['jumlah_transaksi'] ?? pm['jumlah'] ?? pm['transaksi'];
+      if (v is num) jumlah = v.toInt();
+    }
+    if (jumlah == 0) {
+      final v = _data!['transaksi'] ?? _data!['jumlah_padi_masuk'];
+      if (v is num) jumlah = v.toInt();
+    }
+    if (jumlah == 0) return 'Belum ada transaksi padi masuk';
+    return '$jumlah transaksi tercatat';
+  }
+
+  String _fmtKg(double v) {
+    if (v % 1 == 0) return v.toInt().toString();
+    return v.toString();
   }
 
   Future<void> _muat() async {
@@ -101,8 +148,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   _KartuStatistik(
                     icon: Icons.inventory_2_rounded,
                     judul: 'Padi Masuk',
-                    nilai: '0 kg',
-                    catatan: 'Ringkasan transaksi belum tersedia',
+                    nilai: _padiMasukNilai(),
+                    catatan: _padiMasukCatatan(),
                   ),
                   const SizedBox(height: 12),
 

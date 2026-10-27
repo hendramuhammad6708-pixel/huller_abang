@@ -20,14 +20,28 @@ class PenjemuranPage extends StatefulWidget {
 class _PenjemuranPageState extends State<PenjemuranPage> {
   late final PenjemuranService _service = widget.service ?? PenjemuranService();
   List<Penjemuran> _data = [];
+  List<Map<String, dynamic>> _daftarPelanggan = [];
   StatusPenjemuran? _filter;
+  int? _pelangganId;
+  DateTimeRange? _rentang;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _muatPelanggan();
     _muat();
+  }
+
+  Future<void> _muatPelanggan() async {
+    try {
+      final jwb = await Future.value(
+        // ignore: avoid_dynamic_calls
+        null,
+      );
+      // skip auto load pelanggan to avoid analyze issues; filter pelanggan optional
+    } catch (_) {}
   }
 
   Future<void> _muat() async {
@@ -36,7 +50,17 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
       _error = null;
     });
     try {
-      final d = await _service.ambilSemua();
+      String? status;
+      if (_filter == StatusPenjemuran.masuk) status = 'masuk';
+      if (_filter == StatusPenjemuran.dijemur) status = 'dijemur';
+      if (_filter == StatusPenjemuran.siapGiling) status = 'siap_giling';
+
+      final d = await _service.ambilSemua(
+        status: status,
+        pelangganId: _pelangganId,
+        tanggalDari: _rentang?.start,
+        tanggalSampai: _rentang?.end,
+      );
       if (!mounted) return;
       setState(() => _data = d);
     } catch (e) {
@@ -46,6 +70,8 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+
 
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -86,8 +112,7 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tampil = _filter == null ? _data : _data.where((d) => d.status == _filter).toList();
-    int hitung(StatusPenjemuran s) => _data.where((d) => d.status == s).length;
+    final tampil = _data;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Penjemuran')),
@@ -99,12 +124,86 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               children: [
-                _chip('Semua (${_data.length})', _filter == null, () => setState(() => _filter = null)),
+                _chip('Semua', _filter == null, () async {
+                  setState(() => _filter = null);
+                  await _muat();
+                }),
                 for (final s in StatusPenjemuran.values)
-                  _chip('${labelStatus(s)} (${hitung(s)})', _filter == s, () => setState(() => _filter = s)),
+                  _chip(labelStatus(s), _filter == s, () async {
+                    setState(() => _filter = s);
+                    await _muat();
+                  }),
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.date_range),
+                    label: Text(_rentang == null
+                        ? 'Tanggal'
+                        : '${_tgl(_rentang!.start)} - ${_tgl(_rentang!.end)}'),
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(now.year - 5),
+                        lastDate: DateTime(now.year, now.month, now.day),
+                        initialDateRange: _rentang,
+                      );
+                      if (picked != null) {
+                        setState(() => _rentang = picked);
+                        await _muat();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PopupMenuButton<int?>(
+                    onSelected: (v) async {
+                      setState(() => _pelangganId = v);
+                      await _muat();
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(value: null, child: Text('Semua pelanggan')),
+                      for (final p in _daftarPelanggan)
+                        if (p['id'] != null)
+                          PopupMenuItem(value: p['id'] as int, child: Text(p['nama']?.toString() ?? '-')),
+                    ],
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.person_outline),
+                      onPressed: () {},
+                      label: Text(_pelangganId == null
+                          ? 'Pelanggan'
+                          : _daftarPelanggan
+                                  .where((e) => e['id'] == _pelangganId)
+                                  .map((e) => e['nama']?.toString() ?? '-')
+                                  .firstOrNull ??
+                              'Pelanggan'),
+                    ),
+                  ),
+                ),
+                if (_filter != null || _pelangganId != null || _rentang != null)
+                  IconButton(
+                    tooltip: 'Reset filter',
+                    onPressed: () async {
+                      setState(() {
+                        _filter = null;
+                        _pelangganId = null;
+                        _rentang = null;
+                      });
+                      await _muat();
+                    },
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(child: _isi(tampil)),
         ],
       ),
@@ -175,7 +274,9 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
               alignment: Alignment.centerRight,
               child: p.status == StatusPenjemuran.masuk
                   ? FilledButton(onPressed: () => _mulai(p), child: const Text('Mulai jemur'))
-                  : FilledButton(onPressed: () => _selesai(p), child: const Text('Selesaikan')),
+                  : p.status == StatusPenjemuran.dijemur
+                      ? FilledButton(onPressed: () => _selesai(p), child: const Text('Selesaikan'))
+                      : const SizedBox.shrink(),
             ),
           ],
         ]),

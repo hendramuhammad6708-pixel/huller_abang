@@ -42,6 +42,7 @@ class Sesi extends ChangeNotifier {
   bool _memuat = true;
 
   Pengguna? get user => _user;
+  String? get token => api.token;
   bool get sudahLogin => _user != null;
   bool get owner => _user?.owner ?? false;
   bool get memuat => _memuat;

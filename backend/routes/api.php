@@ -51,10 +51,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/padi-masuk', [PadiMasukController::class, 'store']);
     Route::get('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'show']);
     Route::put('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'update']);
+    Route::delete('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'destroy']);
     Route::get('/padi-masuk/{padiMasuk}/log', [PadiMasukController::class, 'log']);
 
+    // Penjemuran (frontend Flutter)
+    Route::get('/penjemuran', [PenjemuranController::class, 'index']);
     Route::post('/padi-masuk/{padiMasuk}/penjemuran', [PenjemuranController::class, 'store']);
     Route::put('/padi-masuk/{padiMasuk}/penjemuran', [PenjemuranController::class, 'update']);
+    Route::post('/penjemuran/{padiMasuk}/mulai', [PenjemuranController::class, 'mulai']);
+    Route::post('/penjemuran/{padiMasuk}/selesai', [PenjemuranController::class, 'selesai']);
 });
 
 // Modul di bawah ini butuh token Sanctum + role owner (lihat docs/api/*.md)

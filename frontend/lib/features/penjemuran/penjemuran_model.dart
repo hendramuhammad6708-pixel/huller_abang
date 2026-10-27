@@ -42,13 +42,44 @@ class Penjemuran {
   });
 
   factory Penjemuran.fromJson(Map<String, dynamic> j) {
-    DateTime? tgl(dynamic v) => v == null ? null : DateTime.parse(v.toString());
-    double? num_(dynamic v) => v == null ? null : double.parse(v.toString());
+    DateTime? tgl(dynamic v) {
+      if (v == null) return null;
+      final s = v.toString();
+      if (s.isEmpty) return null;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    double? num_(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      final s = v.toString().replaceAll(',', '.');
+      return double.tryParse(s);
+    }
+
+    int parseId(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    final tanggalMasukStr = j['tanggal_masuk']?.toString();
+    DateTime tanggalMasuk = DateTime.now();
+    if (tanggalMasukStr != null && tanggalMasukStr.isNotEmpty) {
+      try {
+        tanggalMasuk = DateTime.parse(tanggalMasukStr);
+      } catch (_) {}
+    }
+
     return Penjemuran(
-      id: j['id'] as int,
+      id: parseId(j['id']),
       pelanggan: (j['pelanggan'] ?? '-').toString(),
       kelas: (j['kelas'] ?? '-').toString(),
-      tanggalMasuk: DateTime.parse(j['tanggal_masuk'].toString()),
+      tanggalMasuk: tanggalMasuk,
       beratBasah: num_(j['berat_basah']) ?? 0,
       tanggalMulai: tgl(j['tanggal_mulai']),
       tanggalSelesai: tgl(j['tanggal_selesai']),

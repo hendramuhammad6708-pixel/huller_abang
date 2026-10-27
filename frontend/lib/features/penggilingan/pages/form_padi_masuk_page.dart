@@ -90,19 +90,57 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
   }
 
   Future<void> _simpan({required bool lagi}) async {
-    if (!_formKey.currentState!.validate() || _sedangSimpan) return;
+    if (!_formKey.currentState!.validate()) return;
+    if (_sedangSimpan) return;
+
+    if (_pelangganId == null) {
+      _snack('Pelanggan wajib dipilih dari daftar', galat: true);
+      return;
+    }
+    if (_kelasId == null) {
+      _snack('Kelas padi wajib dipilih', galat: true);
+      return;
+    }
+
     setState(() => _sedangSimpan = true);
 
-    final pelanggan =
-        widget.pelanggan.items.firstWhere((p) => p.id == _pelangganId);
-    final kelas = widget.pengaturan.kelas.firstWhere((k) => k.id == _kelasId);
+    final beratParsed = PadiMasukValidator.parseBerat(_berat.text);
+    if (beratParsed == null || beratParsed <= 0) {
+      if (!mounted) return;
+      setState(() => _sedangSimpan = false);
+      _snack('Berat basah wajib diisi', galat: true);
+      return;
+    }
+
+    Pelanggan? pelanggan;
+    try {
+      pelanggan = widget.pelanggan.items.firstWhere((p) => p.id == _pelangganId);
+    } catch (_) {
+      pelanggan = null;
+    }
+    if (pelanggan == null) {
+      if (!mounted) return;
+      setState(() => _sedangSimpan = false);
+      _snack('Pelanggan tidak valid, pilih kembali dari daftar', galat: true);
+      return;
+    }
+
+    final kelasList = widget.pengaturan.kelas;
+    final kelas = kelasList.where((k) => k.id == _kelasId).firstOrNull;
+    if (kelas == null) {
+      if (!mounted) return;
+      setState(() => _sedangSimpan = false);
+      _snack('Kelas padi tidak valid, pilih kembali', galat: true);
+      return;
+    }
+
     final data = PadiMasuk(
       tanggal: _tanggal,
       pelangganId: _pelangganId!,
       pelangganNama: pelanggan.nama,
       kelasId: _kelasId!,
       kelasNama: kelas.nama,
-      beratKg: PadiMasukValidator.parseBerat(_berat.text)!,
+      beratKg: beratParsed,
       catatan: _catatan.text.trim(),
     );
 
@@ -119,11 +157,24 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
       } else {
         Navigator.pop(context, pesan);
       }
-    } on ApiJawaban catch (e) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
-      // Validasi 422: tampilkan pesan per field dari backend
-      _snack(e.errors.values.firstOrNull ?? e.pesan, galat: true);
+      String pesan = 'Gagal menyimpan padi masuk';
+      if (e is ApiJawaban) {
+        pesan = e.errors['berat_basah_kg'] ??
+            e.errors['berat_kg'] ??
+            e.errors['pelanggan_id'] ??
+            e.errors['kelas_padi_id'] ??
+            e.errors['tanggal'] ??
+            e.errors['catatan'] ??
+            (e.errors.isNotEmpty ? e.errors.values.first : null) ??
+            e.pesan;
+      } else {
+        final s = e.toString().replaceFirst('Exception: ', '');
+        pesan = s.isEmpty ? 'Gagal menyimpan padi masuk' : s;
+      }
+      _snack(pesan, galat: true);
     }
   }
 

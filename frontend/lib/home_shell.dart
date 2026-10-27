@@ -11,6 +11,8 @@ import 'features/pengaturan/pengaturan_page.dart';
 import 'features/penggilingan/padi_masuk_controller.dart';
 import 'features/penggilingan/pages/form_padi_masuk_page.dart';
 import 'features/penggilingan/penggilingan_page.dart';
+import 'features/penjemuran/penjemuran_page.dart';
+import 'features/penjemuran/penjemuran_service.dart';
 
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
 /// - Owner: Dashboard, Padi Masuk, Pelanggan, Operator, Pengaturan
@@ -100,6 +102,10 @@ class _HomeShellState extends State<HomeShell> {
                 selectedIcon: Icon(Icons.grain_rounded),
                 label: 'Padi Masuk'),
             NavigationDestination(
+                icon: Icon(Icons.wb_sunny_outlined),
+                selectedIcon: Icon(Icons.wb_sunny),
+                label: 'Penjemuran'),
+            NavigationDestination(
                 icon: Icon(Icons.groups_outlined),
                 selectedIcon: Icon(Icons.groups_rounded),
                 label: 'Pelanggan'),
@@ -117,6 +123,10 @@ class _HomeShellState extends State<HomeShell> {
                 icon: Icon(Icons.grain_outlined),
                 selectedIcon: Icon(Icons.grain_rounded),
                 label: 'Padi Masuk'),
+            NavigationDestination(
+                icon: Icon(Icons.wb_sunny_outlined),
+                selectedIcon: Icon(Icons.wb_sunny),
+                label: 'Penjemuran'),
           ];
 
     final penggilingan = PenggilinganPage(
@@ -129,11 +139,15 @@ class _HomeShellState extends State<HomeShell> {
         ? <Widget>[
             DashboardPage(onCatatPadi: _catatPadi),
             penggilingan,
+            PenjemuranPage(service: PenjemuranService(tokenGetter: () async => Sesi.instance.token)),
             DaftarPelangganPage(controller: _pelanggan),
             const OperatorPage(),
             PengaturanPage(controller: _pengaturan),
           ]
-        : <Widget>[penggilingan];
+        : <Widget>[
+            penggilingan,
+            PenjemuranPage(service: PenjemuranService(tokenGetter: () async => Sesi.instance.token)),
+          ];
 
     // Jaga indeks tetap valid saat role berganti
     final index = _index < pages.length ? _index : 0;

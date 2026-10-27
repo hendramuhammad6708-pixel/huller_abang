@@ -53,7 +53,7 @@ void main() {
         'nama_pelanggan': 'Pak Warsito',
         'kelas_padi_id': 2,
         'nama_kelas': 'Premium',
-        'berat_kg': 250.5,
+        'berat_basah_kg': 250.5,
         'catatan': null,
       });
       expect(p.id, 7);
@@ -72,7 +72,7 @@ void main() {
         'pelanggan': {'nama': 'Bu Sri'},
         'kelas_padi_id': 2,
         'kelas_padi': {'nama_kelas': 'Medium'},
-        'berat_kg': 100,
+        'berat_basah_kg': 100,
       });
       expect(p.pelangganNama, 'Bu Sri');
       expect(p.kelasNama, 'Medium');
@@ -90,7 +90,7 @@ void main() {
         'tanggal': '2026-03-09',
         'pelanggan_id': 3,
         'kelas_padi_id': 2,
-        'berat_kg': 120.5,
+        'berat_basah_kg': 120.5,
         'catatan': null,
       });
     });
