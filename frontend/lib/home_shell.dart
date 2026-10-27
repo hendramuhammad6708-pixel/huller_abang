@@ -8,11 +8,13 @@ import 'features/pelanggan/pages/daftar_pelanggan_page.dart';
 import 'features/pelanggan/pelanggan_controller.dart';
 import 'features/pengaturan/pengaturan_controller.dart';
 import 'features/pengaturan/pengaturan_page.dart';
+import 'features/penggilingan/padi_masuk_controller.dart';
+import 'features/penggilingan/pages/form_padi_masuk_page.dart';
 import 'features/penggilingan/penggilingan_page.dart';
 
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
-/// - Owner: Dashboard, Pelanggan, Operator, Pengaturan, Penggilingan
-/// - Operator: hanya Penggilingan (modul lain menyusul)
+/// - Owner: Dashboard, Padi Masuk, Pelanggan, Operator, Pengaturan
+/// - Operator: hanya Padi Masuk (modul lain menyusul)
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -23,13 +25,38 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final _pelanggan = PelangganController();
   final _pengaturan = PengaturanController();
+  final _padiMasuk = PadiMasukController();
   int _index = 0;
 
   @override
   void dispose() {
     _pelanggan.dispose();
     _pengaturan.dispose();
+    _padiMasuk.dispose();
     super.dispose();
+  }
+
+  /// Buka form catat padi masuk langsung (mis. dari tombol di Dashboard).
+  Future<void> _catatPadi() async {
+    final pesan = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FormPadiMasukPage(
+          controller: _padiMasuk,
+          pelanggan: _pelanggan,
+          pengaturan: _pengaturan,
+        ),
+      ),
+    );
+    if (pesan != null && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(pesan),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.primary,
+        ));
+    }
   }
 
   Future<void> _keluar() async {
@@ -69,6 +96,10 @@ class _HomeShellState extends State<HomeShell> {
                 selectedIcon: Icon(Icons.dashboard_rounded),
                 label: 'Dashboard'),
             NavigationDestination(
+                icon: Icon(Icons.grain_outlined),
+                selectedIcon: Icon(Icons.grain_rounded),
+                label: 'Padi Masuk'),
+            NavigationDestination(
                 icon: Icon(Icons.groups_outlined),
                 selectedIcon: Icon(Icons.groups_rounded),
                 label: 'Pelanggan'),
@@ -80,29 +111,29 @@ class _HomeShellState extends State<HomeShell> {
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings_rounded),
                 label: 'Pengaturan'),
-            NavigationDestination(
-                icon: Icon(Icons.grain_outlined),
-                selectedIcon: Icon(Icons.grain_rounded),
-                label: 'Penggilingan'),
           ]
         : const [
             NavigationDestination(
                 icon: Icon(Icons.grain_outlined),
                 selectedIcon: Icon(Icons.grain_rounded),
-                label: 'Penggilingan'),
+                label: 'Padi Masuk'),
           ];
+
+    final penggilingan = PenggilinganPage(
+      controller: _padiMasuk,
+      pelanggan: _pelanggan,
+      pengaturan: _pengaturan,
+    );
 
     final pages = owner
         ? <Widget>[
-            const DashboardPage(),
+            DashboardPage(onCatatPadi: _catatPadi),
+            penggilingan,
             DaftarPelangganPage(controller: _pelanggan),
             const OperatorPage(),
             PengaturanPage(controller: _pengaturan),
-            const PenggilinganPage(),
           ]
-        : <Widget>[
-            const PenggilinganPage(),
-          ];
+        : <Widget>[penggilingan];
 
     // Jaga indeks tetap valid saat role berganti
     final index = _index < pages.length ? _index : 0;
