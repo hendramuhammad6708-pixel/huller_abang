@@ -4,8 +4,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KelasPadiController;
 use App\Http\Controllers\OperatorController;
+use App\Http\Controllers\PadiMasukController;
 use App\Http\Controllers\PelangganController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\PenjemuranController;
 use App\Support\ApiResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -41,6 +43,19 @@ Route::middleware(['auth:sanctum', 'role:owner'])
     });
 
 // Daftar route modul: tiap modul menambah barisnya di bawah ini
+
+// --- Padi masuk & penjemuran (owner dan operator)
+// Operator adalah pengguna utama modul ini, jadi cukup token Sanctum.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/padi-masuk', [PadiMasukController::class, 'index']);
+    Route::post('/padi-masuk', [PadiMasukController::class, 'store']);
+    Route::get('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'show']);
+    Route::put('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'update']);
+    Route::get('/padi-masuk/{padiMasuk}/log', [PadiMasukController::class, 'log']);
+
+    Route::post('/padi-masuk/{padiMasuk}/penjemuran', [PenjemuranController::class, 'store']);
+    Route::put('/padi-masuk/{padiMasuk}/penjemuran', [PenjemuranController::class, 'update']);
+});
 
 // Modul di bawah ini butuh token Sanctum + role owner (lihat docs/api/*.md)
 Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
