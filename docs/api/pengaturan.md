@@ -63,7 +63,7 @@ Respons `200`: `data` berisi `id`. Respons `404` jika id tidak ada, `422` jika t
 ## DELETE /api/kelas-padi/{id} — hapus kelas
 
 Respons `200` jika berhasil. Respons `404` jika id tidak ada.
-Respons `409` jika kelas sudah dipakai data padi masuk (berlaku mulai Sprint 2, saat tabel padi masuk sudah ada).
+Respons `409` jika kelas sudah dipakai data padi masuk.
 
 ## Ringkasan kode status
 
