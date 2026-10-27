@@ -45,7 +45,7 @@ class KelasPadiController extends Controller
         try {
             $kelas->delete();
         } catch (QueryException $e) {
-            // Aktif mulai Sprint 2: saat tabel padi_masuk sudah memakai kelas_padi (foreign key)
+            // Tabel padi_masuk memakai foreign key restrict ke kelas_padi
             if ((string) $e->getCode() === '23000') {
                 return ApiResponse::gagal(
                     'Kelas padi tidak bisa dihapus karena sudah dipakai data padi masuk',
