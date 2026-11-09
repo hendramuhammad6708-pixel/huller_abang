@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/api_client.dart';
 import '../../../core/app_theme.dart';
 import '../../../core/konfirmasi_hapus.dart';
+import '../../../core/ui.dart';
 import '../models/pelanggan.dart';
 import '../pelanggan_controller.dart';
 import '../pelanggan_validator.dart';
+import '../widgets/pelanggan_card.dart';
 
 /// Form tambah (pelanggan == null) atau ubah pelanggan — tersimpan ke API.
 /// Menutup halaman dengan pesan sukses untuk ditampilkan di daftar.
@@ -63,22 +65,8 @@ class _FormPelangganPageState extends State<FormPelangganPage> {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
       // Validasi 422: tampilkan pesan per field dari backend
-      final galatNama = e.errors['nama'];
-      final galatKontak = e.errors['kontak'];
-      if (galatNama != null || galatKontak != null) {
-        _formKey.currentState?.validate();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(galatNama ?? galatKontak ?? e.pesan),
-          backgroundColor: const Color(0xFFD64545),
-          behavior: SnackBarBehavior.floating,
-        ));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.pesan),
-          backgroundColor: const Color(0xFFD64545),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      final galatField = e.errors['nama'] ?? e.errors['kontak'];
+      tampilkanPesan(context, galatField ?? e.pesan, galat: true);
     }
   }
 
@@ -94,132 +82,153 @@ class _FormPelangganPageState extends State<FormPelangganPage> {
       await widget.controller.hapus(p.id!);
       if (mounted) Navigator.pop(context, '${p.nama} dihapus');
     } on ApiJawaban catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.pesan),
-          backgroundColor: const Color(0xFFD64545),
-        ));
-      }
+      if (mounted) tampilkanPesan(context, e.pesan, galat: true);
     }
   }
-
-  InputDecoration _dekor(String label, IconData icon, {String? hint}) =>
-      InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border: _border(AppColors.border),
-        enabledBorder: _border(AppColors.border),
-        focusedBorder: _border(AppColors.primaryLight, 1.5),
-        errorBorder: _border(const Color(0xFFD64545)),
-        focusedErrorBorder: _border(const Color(0xFFD64545), 1.5),
-      );
-
-  OutlineInputBorder _border(Color c, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: c, width: w),
-      );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_ubah ? 'Ubah Pelanggan' : 'Pelanggan Baru',
-            style: const TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(_ubah ? 'Ubah Pelanggan' : 'Pelanggan Baru'),
         actions: [
           if (_ubah)
             IconButton(
               tooltip: 'Hapus pelanggan',
               onPressed: _hapus,
               icon: const Icon(Icons.delete_outline_rounded,
-                  color: Color(0xFFD64545)),
+                  color: AppColors.danger),
             ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            children: [
-              TextFormField(
-                key: const Key('field-nama'),
-                controller: _nama,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                decoration: _dekor('Nama pelanggan', Icons.person_outline,
-                    hint: 'Contoh: Pak Warsito'),
-                validator: (v) {
-                  final e = PelangganValidator.nama(v);
-                  if (e != null) return e;
-                  // Pesan 422 backend (nama dobel dsb.) bila ada
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                key: const Key('field-kontak'),
-                controller: _kontak,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                decoration: _dekor('No. HP (opsional)', Icons.phone_outlined,
-                    hint: '081234567890'),
-                validator: PelangganValidator.kontak,
-              ),
-              const SizedBox(height: 20),
-              const Text('Tipe pelanggan',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark)),
-              const SizedBox(height: 8),
-              SegmentedButton<TipePelanggan>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: TipePelanggan.petani,
-                    icon: Icon(Icons.grass_rounded),
-                    label: Text('Petani'),
+      bottomNavigationBar: BilahAksiBawah(children: [
+        TombolUtama(
+          key: const Key('btn-simpan'),
+          label: _ubah ? 'Simpan Perubahan' : 'Simpan Pelanggan',
+          icon: Icons.check_rounded,
+          memuat: _sedangSimpan,
+          onPressed: _simpan,
+        ),
+      ]),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            LebarKonten(
+              maks: 640,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const JudulBagian('Data pelanggan'),
+                  TextFormField(
+                    key: const Key('field-nama'),
+                    controller: _nama,
+                    autofocus: !_ubah,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama pelanggan',
+                      hintText: 'Contoh: Pak Warsito',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                    ),
+                    validator: PelangganValidator.nama,
                   ),
-                  ButtonSegment(
-                    value: TipePelanggan.pengepul,
-                    icon: Icon(Icons.local_shipping_outlined),
-                    label: Text('Pengepul'),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    key: const Key('field-kontak'),
+                    controller: _kontak,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'No. HP (opsional)',
+                      hintText: '081234567890',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                    validator: PelangganValidator.kontak,
                   ),
-                  ButtonSegment(
-                    value: TipePelanggan.milikHuller,
-                    icon: Icon(Icons.warehouse_outlined),
-                    label: Text('Milik Huller'),
-                  ),
+                  const SizedBox(height: 24),
+                  const JudulBagian('Tipe pelanggan'),
+                  for (final t in TipePelanggan.values) ...[
+                    _PilihanTipe(
+                      tipe: t,
+                      terpilih: _tipe == t,
+                      onTap: () => setState(() => _tipe = t),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ],
-                selected: {_tipe},
-                onSelectionChanged: (s) => setState(() => _tipe = s.first),
-                style: SegmentedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  selectedBackgroundColor: AppColors.mint,
-                  selectedForegroundColor: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Satu pilihan tipe pelanggan berupa kartu dengan penjelasan singkat.
+class _PilihanTipe extends StatelessWidget {
+  final TipePelanggan tipe;
+  final bool terpilih;
+  final VoidCallback onTap;
+
+  const _PilihanTipe(
+      {required this.tipe, required this.terpilih, required this.onTap});
+
+  (IconData, String) get _info => switch (tipe) {
+        TipePelanggan.petani =>
+          (Icons.grass_rounded, 'Menggiling padi hasil panen sendiri'),
+        TipePelanggan.pengepul =>
+          (Icons.local_shipping_outlined, 'Membawa padi dari banyak petani'),
+        TipePelanggan.milikHuller =>
+          (Icons.warehouse_outlined, 'Stok padi milik huller sendiri'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, ket) = _info;
+    final sudut = BorderRadius.circular(AppRadius.sedang);
+    return Material(
+      color: terpilih ? AppColors.mint.withValues(alpha: 0.5) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: sudut,
+        side: BorderSide(
+          color: terpilih ? AppColors.primaryLight : AppColors.border,
+          width: terpilih ? 1.6 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: Key('tipe-${tipe.nilaiApi}'),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              IkonKotak(icon,
+                  latar: tipe.latar, warna: tipe.warna, ukuran: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tipe.label,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textDark)),
+                    Text(ket,
+                        style: const TextStyle(
+                            fontSize: 12.5, color: AppColors.textMuted)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                key: const Key('btn-simpan'),
-                onPressed: _sedangSimpan ? null : _simpan,
-                icon: _sedangSimpan
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.check_rounded),
-                label: Text(_ubah ? 'Simpan Perubahan' : 'Simpan Pelanggan'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
+              Icon(
+                terpilih
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: terpilih ? AppColors.primary : AppColors.border,
               ),
             ],
           ),

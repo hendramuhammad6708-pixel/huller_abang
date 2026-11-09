@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/app_theme.dart';
 import 'core/sesi.dart';
+import 'core/ui.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/operator/operator_page.dart';
 import 'features/pelanggan/pages/daftar_pelanggan_page.dart';
@@ -12,9 +13,39 @@ import 'features/penggilingan/padi_masuk_controller.dart';
 import 'features/penggilingan/pages/form_padi_masuk_page.dart';
 import 'features/penggilingan/penggilingan_page.dart';
 
+/// Satu menu navigasi utama.
+class _Menu {
+  final IconData icon;
+  final IconData iconAktif;
+  final String label;
+  final String subjudul;
+
+  const _Menu(this.icon, this.iconAktif, this.label, this.subjudul);
+}
+
+const _menuDashboard = _Menu(Icons.dashboard_outlined, Icons.dashboard_rounded,
+    'Dashboard', 'Ringkasan operasional huller');
+const _menuPadi = _Menu(Icons.grain_outlined, Icons.grain_rounded,
+    'Padi Masuk', 'Catat & lihat riwayat padi masuk');
+const _menuPelanggan = _Menu(Icons.groups_outlined, Icons.groups_rounded,
+    'Pelanggan', 'Petani, pengepul & milik huller');
+const _menuOperator = _Menu(Icons.badge_outlined, Icons.badge_rounded,
+    'Operator', 'Akun yang boleh mencatat penggilingan');
+const _menuPengaturan = _Menu(Icons.settings_outlined, Icons.settings_rounded,
+    'Pengaturan', 'Bagi hasil & kelas padi');
+
+/// Indeks tab owner, dipakai pintasan dari Dashboard.
+class TabOwner {
+  static const padi = 1;
+  static const pelanggan = 2;
+  static const operator = 3;
+  static const pengaturan = 4;
+}
+
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
 /// - Owner: Dashboard, Padi Masuk, Pelanggan, Operator, Pengaturan
 /// - Operator: hanya Padi Masuk (modul lain menyusul)
+/// Layar sempit memakai bilah navigasi bawah, layar lebar memakai rail kiri.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -48,34 +79,28 @@ class _HomeShellState extends State<HomeShell> {
         ),
       ),
     );
-    if (pesan != null && mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(pesan),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.primary,
-        ));
-    }
+    if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
   Future<void> _keluar() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.logout_rounded, size: 32),
-        title: const Text('Keluar?', textAlign: TextAlign.center),
-        content: const Text('Anda akan keluar dari aplikasi.',
-            textAlign: TextAlign.center),
+        icon: const Icon(Icons.logout_rounded,
+            size: 32, color: AppColors.primary),
+        title: const Text('Keluar dari aplikasi?', textAlign: TextAlign.center),
+        content: const Text(
+          'Anda perlu masuk lagi dengan username dan kata sandi.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textMuted),
+        ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(
+          OutlinedButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Batal')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Keluar'),
           ),
         ],
@@ -88,46 +113,28 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final owner = Sesi.instance.owner;
 
-    // Daftar tab mengikuti role
-    final destinations = owner
-        ? const [
-            NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard_rounded),
-                label: 'Dashboard'),
-            NavigationDestination(
-                icon: Icon(Icons.grain_outlined),
-                selectedIcon: Icon(Icons.grain_rounded),
-                label: 'Padi Masuk'),
-            NavigationDestination(
-                icon: Icon(Icons.groups_outlined),
-                selectedIcon: Icon(Icons.groups_rounded),
-                label: 'Pelanggan'),
-            NavigationDestination(
-                icon: Icon(Icons.badge_outlined),
-                selectedIcon: Icon(Icons.badge_rounded),
-                label: 'Operator'),
-            NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded),
-                label: 'Pengaturan'),
-          ]
-        : const [
-            NavigationDestination(
-                icon: Icon(Icons.grain_outlined),
-                selectedIcon: Icon(Icons.grain_rounded),
-                label: 'Padi Masuk'),
-          ];
-
     final penggilingan = PenggilinganPage(
       controller: _padiMasuk,
       pelanggan: _pelanggan,
       pengaturan: _pengaturan,
     );
 
+    // Daftar menu dan halaman mengikuti role (urutan harus sama)
+    final menu = owner
+        ? const [
+            _menuDashboard,
+            _menuPadi,
+            _menuPelanggan,
+            _menuOperator,
+            _menuPengaturan,
+          ]
+        : const [_menuPadi];
     final pages = owner
         ? <Widget>[
-            DashboardPage(onCatatPadi: _catatPadi),
+            DashboardPage(
+              onCatatPadi: _catatPadi,
+              onBukaTab: (i) => setState(() => _index = i),
+            ),
             penggilingan,
             DaftarPelangganPage(controller: _pelanggan),
             const OperatorPage(),
@@ -137,40 +144,160 @@ class _HomeShellState extends State<HomeShell> {
 
     // Jaga indeks tetap valid saat role berganti
     final index = _index < pages.length ? _index : 0;
+    final aktif = menu[index];
+    // NavigationBar butuh minimal 2 tujuan; operator cukup tanpa navigasi
+    final adaNavigasi = menu.length > 1;
+    final lebar = MediaQuery.sizeOf(context).width >= 840;
+
+    final isi = IndexedStack(index: index, children: pages);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          destinations[index].label,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Center(
-              child: Text(
-                Sesi.instance.user?.nama ?? '',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textMuted),
+        toolbarHeight: 64,
+        titleSpacing: 20,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(aktif.label),
+            Text(
+              aktif.subjudul,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
               ),
             ),
-          ),
-          IconButton(
-            tooltip: 'Keluar',
-            onPressed: _keluar,
-            icon: const Icon(Icons.logout_rounded, size: 21),
-          ),
+          ],
+        ),
+        actions: [
+          _MenuAkun(onKeluar: _keluar),
+          const SizedBox(width: 12),
         ],
       ),
-      body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.mint,
-        destinations: destinations,
+      body: lebar && adaNavigasi
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: index,
+                  onDestinationSelected: (i) => setState(() => _index = i),
+                  labelType: NavigationRailLabelType.all,
+                  groupAlignment: -0.85,
+                  leading: Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: gradienHero,
+                        borderRadius: BorderRadius.circular(AppRadius.sedang),
+                      ),
+                      child: const Icon(Icons.grain_rounded,
+                          color: AppColors.aksen, size: 26),
+                    ),
+                  ),
+                  destinations: [
+                    for (final m in menu)
+                      NavigationRailDestination(
+                        icon: Icon(m.icon),
+                        selectedIcon: Icon(m.iconAktif),
+                        label: Text(m.label),
+                      ),
+                  ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: isi),
+              ],
+            )
+          : isi,
+      bottomNavigationBar: !lebar && adaNavigasi
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryDark.withValues(alpha: 0.07),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: NavigationBar(
+                selectedIndex: index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+                destinations: [
+                  for (final m in menu)
+                    NavigationDestination(
+                      icon: Icon(m.icon),
+                      selectedIcon: Icon(m.iconAktif),
+                      label: m.label,
+                    ),
+                ],
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+/// Avatar pengguna di kanan atas; ketuk untuk melihat akun dan keluar.
+class _MenuAkun extends StatelessWidget {
+  final VoidCallback onKeluar;
+
+  const _MenuAkun({required this.onKeluar});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = Sesi.instance.user;
+    final nama = user?.nama ?? '';
+    final inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+    final role = (user?.owner ?? false) ? 'Pemilik' : 'Operator';
+
+    return PopupMenuButton<String>(
+      key: const Key('menu-akun'),
+      tooltip: 'Akun',
+      offset: const Offset(0, 52),
+      onSelected: (v) {
+        if (v == 'keluar') onKeluar();
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(nama,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, color: AppColors.textDark)),
+              Text('${user?.username ?? ''} · $role',
+                  style: const TextStyle(
+                      fontSize: 12.5, color: AppColors.textMuted)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'keluar',
+          child: Row(
+            children: [
+              Icon(Icons.logout_rounded, size: 20, color: AppColors.danger),
+              SizedBox(width: 12),
+              Text('Keluar', style: TextStyle(color: AppColors.danger)),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: gradienHero,
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: AppShadows.kartu,
+        ),
+        child: Text(inisial,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w800)),
       ),
     );
   }

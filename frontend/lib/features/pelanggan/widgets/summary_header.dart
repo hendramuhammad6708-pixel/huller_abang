@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/app_theme.dart';
+import '../../../core/ui.dart';
 
 class SummaryHeader extends StatelessWidget {
   final int totalPelanggan;
@@ -16,23 +16,8 @@ class SummaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PanelHero(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryLight],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
       child: Row(
         children: [
           Expanded(
@@ -42,8 +27,12 @@ class SummaryHeader extends StatelessWidget {
               value: '$totalPelanggan',
             ),
           ),
-          Container(width: 1, height: 44, color: Colors.white24),
-          const SizedBox(width: 16),
+          Container(
+            width: 1,
+            height: 48,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            color: Colors.white24,
+          ),
           Expanded(
             child: _Item(
               icon: Icons.grass_rounded,
@@ -76,7 +65,10 @@ class _Item extends StatelessWidget {
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -88,8 +80,9 @@ class _Item extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
           ),
         ),

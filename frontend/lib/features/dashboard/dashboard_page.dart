@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
 import '../../core/sesi.dart';
+import '../../core/ui.dart';
+import '../../home_shell.dart';
+import '../penggilingan/models/padi_masuk.dart';
 
 /// Ringkasan dashboard owner dari GET /api/dashboard/summary.
 class DashboardPage extends StatefulWidget {
-  /// Dipanggil saat tombol/kartu "Padi Masuk" diketuk (membuka form catat).
+  /// Dipanggil saat tombol "Catat Padi Masuk" diketuk (membuka form catat).
   final VoidCallback? onCatatPadi;
 
-  const DashboardPage({super.key, this.onCatatPadi});
+  /// Pindah ke tab lain di HomeShell (lihat [TabOwner]).
+  final ValueChanged<int>? onBukaTab;
+
+  const DashboardPage({super.key, this.onCatatPadi, this.onBukaTab});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -42,226 +48,374 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  String get _sapaan {
+    final jam = DateTime.now().hour;
+    if (jam < 11) return 'Selamat pagi';
+    if (jam < 15) return 'Selamat siang';
+    if (jam < 18) return 'Selamat sore';
+    return 'Selamat malam';
+  }
+
+  int _angka(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _muat,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            children: [
-              Text(
-                'Halo, ${Sesi.instance.user?.nama ?? ''} 👋',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
-                ),
+      body: RefreshIndicator(
+        onRefresh: _muat,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          children: [
+            LebarKonten(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _sambutan(),
+                  const SizedBox(height: 24),
+                  if (_memuat)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_galat != null)
+                    BannerGalat(_galat!, onUlangi: _muat)
+                  else if (_data != null)
+                    _ringkasan(_data!),
+                  const SizedBox(height: 24),
+                  const JudulBagian('Segera hadir'),
+                  const _ModulMenyusul(
+                    icon: Icons.savings_outlined,
+                    judul: 'Stok Upah',
+                    pesan: 'Dihitung otomatis dari transaksi giling',
+                  ),
+                  const SizedBox(height: 10),
+                  const _ModulMenyusul(
+                    icon: Icons.account_balance_wallet_outlined,
+                    judul: 'Saldo Titip',
+                    pesan: 'Saldo beras milik pelanggan',
+                  ),
+                  const SizedBox(height: 10),
+                  const _ModulMenyusul(
+                    icon: Icons.point_of_sale_outlined,
+                    judul: 'Penjualan',
+                    pesan: 'Pencatatan penjualan beras',
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              const Text('Ringkasan operasional huller hari ini',
-                  style: TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 18),
-              if (widget.onCatatPadi != null) ...[
-                FilledButton.icon(
-                  key: const Key('btn-catat-padi'),
-                  onPressed: widget.onCatatPadi,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Catat Padi Masuk',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                const SizedBox(height: 18),
-              ],
-              if (_memuat)
-                const Padding(
-                  padding: EdgeInsets.only(top: 60),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_galat != null)
-                _galatBanner()
-              else if (_data != null) ...[
-                _KartuStatistik(
-                  icon: Icons.inventory_2_rounded,
-                  judul: 'Padi Masuk',
-                  nilai: '0 kg',
-                  catatan: 'Ketuk untuk mencatat padi masuk',
-                  onTap: widget.onCatatPadi,
-                ),
-                const SizedBox(height: 12),
-                _KartuStatistik(
-                  icon: Icons.savings_outlined,
-                  judul: 'Stok Upah',
-                  nilai: '0 kg',
-                  catatan: 'Terhitung otomatis dari transaksi giling',
-                ),
-                const SizedBox(height: 12),
-                _KartuStatistik(
-                  icon: Icons.account_balance_wallet_outlined,
-                  judul: 'Saldo Titip',
-                  nilai: '0 kg',
-                  catatan: 'Saldo beras milik pelanggan',
-                ),
-                const SizedBox(height: 12),
-                _KartuStatistik(
-                  icon: Icons.point_of_sale_outlined,
-                  judul: 'Penjualan',
-                  nilai: '0',
-                  catatan: 'Belum ada transaksi penjualan',
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Data Master',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textDark)),
-                      const SizedBox(height: 12),
-                      _barisData('Total pelanggan',
-                          '${_data!['total_pelanggan'] ?? 0}'),
-                      _barisData('Petani',
-                          '${(_data!['pelanggan_per_tipe']?['petani']) ?? 0}'),
-                      _barisData('Pengepul',
-                          '${(_data!['pelanggan_per_tipe']?['pengepul']) ?? 0}'),
-                      _barisData(
-                          'Milik huller',
-                          '${(_data!['pelanggan_per_tipe']?['milik_huller']) ?? 0}'),
-                      _barisData('Kelas padi',
-                          '${_data!['total_kelas_padi'] ?? 0}'),
-                      if (Sesi.instance.owner) ...[
-                        const Divider(height: 20),
-                        _barisData('Operator aktif',
-                            '${_data!['operator_aktif'] ?? 0} / ${_data!['total_operator'] ?? 0}'),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _barisData(String label, String nilai) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-                child: Text(label,
-                    style: const TextStyle(color: AppColors.textMuted))),
-            Text(nilai,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.textDark)),
+  /// Kartu sambutan dengan aksi utama harian.
+  Widget _sambutan() {
+    final nama = Sesi.instance.user?.nama ?? '';
+    return PanelHero(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.aksen.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wb_sunny_rounded,
+                    size: 14, color: AppColors.primaryDark),
+                const SizedBox(width: 6),
+                Text(formatTanggal(DateTime.now()),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDark)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '$_sapaan,',
+            style: TextStyle(
+                fontSize: 15, color: Colors.white.withValues(alpha: 0.85)),
+          ),
+          Text(
+            nama,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('Ada padi yang baru datang? Catat sekarang agar bagi hasil '
+              'langsung terhitung.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85))),
+          if (widget.onCatatPadi != null) ...[
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('btn-catat-padi'),
+              onPressed: widget.onCatatPadi,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+                minimumSize: const Size.fromHeight(54),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.add_circle_rounded),
+              label: const Text('Catat Padi Masuk'),
+            ),
           ],
-        ),
-      );
+        ],
+      ),
+    );
+  }
 
-  Widget _galatBanner() => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEAEA),
-          borderRadius: BorderRadius.circular(16),
+  Widget _ringkasan(Map<String, dynamic> d) {
+    final tipe = d['pelanggan_per_tipe'] is Map
+        ? d['pelanggan_per_tipe'] as Map
+        : const {};
+    final buka = widget.onBukaTab;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const JudulBagian('Data master'),
+        _KartuAngka(
+          icon: Icons.groups_rounded,
+          judul: 'Pelanggan',
+          nilai: '${_angka(d['total_pelanggan'])}',
+          rincian: '${_angka(tipe['petani'])} petani · '
+              '${_angka(tipe['pengepul'])} pengepul · '
+              '${_angka(tipe['milik_huller'])} milik huller',
+          onTap: buka == null ? null : () => buka(TabOwner.pelanggan),
         ),
-        child: Row(
+        const SizedBox(height: 12),
+        Row(
           children: [
-            const Icon(Icons.error_outline, color: Color(0xFFD64545)),
-            const SizedBox(width: 10),
             Expanded(
-                child: Text(_galat!,
-                    style: const TextStyle(color: Color(0xFFD64545)))),
-            TextButton(onPressed: _muat, child: const Text('Ulangi')),
+              child: _KartuAngka(
+                icon: Icons.category_rounded,
+                judul: 'Kelas padi',
+                nilai: '${_angka(d['total_kelas_padi'])}',
+                latar: AppColors.goldSoft,
+                warna: AppColors.gold,
+                onTap: buka == null ? null : () => buka(TabOwner.pengaturan),
+              ),
+            ),
+            if (Sesi.instance.owner) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: _KartuAngka(
+                  icon: Icons.badge_rounded,
+                  judul: 'Operator aktif',
+                  nilai: '${_angka(d['operator_aktif'])}'
+                      '/${_angka(d['total_operator'])}',
+                  latar: AppColors.blueSoft,
+                  warna: AppColors.blue,
+                  onTap: buka == null ? null : () => buka(TabOwner.operator),
+                ),
+              ),
+            ],
           ],
         ),
-      );
+        if (buka != null) ...[
+          const SizedBox(height: 26),
+          const JudulBagian('Akses cepat'),
+          KartuApp(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              children: [
+                _Pintasan(
+                  icon: Icons.history_rounded,
+                  label: 'Riwayat padi masuk',
+                  onTap: () => buka(TabOwner.padi),
+                ),
+                const Divider(indent: 72),
+                _Pintasan(
+                  icon: Icons.person_add_alt_1_rounded,
+                  label: 'Tambah pelanggan',
+                  latar: AppColors.blueSoft,
+                  warna: AppColors.blue,
+                  onTap: () => buka(TabOwner.pelanggan),
+                ),
+                const Divider(indent: 72),
+                _Pintasan(
+                  icon: Icons.percent_rounded,
+                  label: 'Atur bagi hasil',
+                  latar: AppColors.goldSoft,
+                  warna: AppColors.gold,
+                  onTap: () => buka(TabOwner.pengaturan),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
-class _KartuStatistik extends StatelessWidget {
+class _KartuAngka extends StatelessWidget {
   final IconData icon;
   final String judul;
   final String nilai;
-  final String catatan;
+  final String? rincian;
+  final Color latar;
+  final Color warna;
   final VoidCallback? onTap;
 
-  const _KartuStatistik({
+  const _KartuAngka({
     required this.icon,
     required this.judul,
     required this.nilai,
-    required this.catatan,
+    this.rincian,
+    this.latar = AppColors.mint,
+    this.warna = AppColors.mintText,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+    final teksNilai = Text(nilai,
+        style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+            color: AppColors.textDark));
+    final teksJudul = Text(judul,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMuted));
+
+    // Tanpa rincian: ubin tegak (dipakai berpasangan dalam satu baris)
+    if (rincian == null) {
+      return KartuApp(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.mint,
-              borderRadius: BorderRadius.circular(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IkonKotak(icon, latar: latar, warna: warna, ukuran: 40),
+                const Spacer(),
+                if (onTap != null)
+                  const Icon(Icons.arrow_outward_rounded,
+                      size: 18, color: AppColors.textMuted),
+              ],
             ),
-            child: Icon(icon, size: 24, color: AppColors.mintText),
-          ),
+            const SizedBox(height: 14),
+            teksNilai,
+            teksJudul,
+          ],
+        ),
+      );
+    }
+
+    return KartuApp(
+      onTap: onTap,
+      child: Row(
+        children: [
+          IkonKotak(icon, latar: latar, warna: warna, ukuran: 52),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(judul,
+                teksJudul,
+                teksNilai,
+                Text(rincian!,
                     style: const TextStyle(
-                        fontSize: 13, color: AppColors.textMuted)),
-                const SizedBox(height: 2),
-                Text(nilai,
-                    style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDark)),
-                const SizedBox(height: 2),
-                Text(catatan,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.textMuted)),
+                        fontSize: 12, color: AppColors.textMuted)),
               ],
             ),
           ),
+          if (onTap != null)
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
         ],
-      ),
-        ),
       ),
     );
   }
+}
+
+class _Pintasan extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color latar;
+  final Color warna;
+  final VoidCallback onTap;
+
+  const _Pintasan({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.latar = AppColors.mint,
+    this.warna = AppColors.mintText,
+  });
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: IkonKotak(icon, latar: latar, warna: warna, ukuran: 40),
+        title: Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.textDark)),
+        trailing: const Icon(Icons.chevron_right_rounded),
+      );
+}
+
+/// Modul yang belum tersedia, ditandai jelas agar tidak dikira data nol.
+class _ModulMenyusul extends StatelessWidget {
+  final IconData icon;
+  final String judul;
+  final String pesan;
+
+  const _ModulMenyusul(
+      {required this.icon, required this.judul, required this.pesan});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(AppRadius.besar),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            IkonKotak(icon,
+                latar: AppColors.background,
+                warna: AppColors.textMuted,
+                ukuran: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(judul,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textDark)),
+                  Text(pesan,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+            const Lencana('Segera',
+                latar: AppColors.goldSoft, warna: AppColors.gold),
+          ],
+        ),
+      );
 }

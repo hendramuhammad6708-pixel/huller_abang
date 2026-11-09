@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api_client.dart';
-import '../../../core/app_theme.dart';
 import '../../../core/konfirmasi_hapus.dart';
+import '../../../core/ui.dart';
 import '../models/pelanggan.dart';
 import '../pelanggan_controller.dart';
 import 'form_pelanggan_page.dart';
@@ -17,6 +17,13 @@ enum _Filter {
 
   final String label;
   const _Filter(this.label);
+
+  bool cocok(Pelanggan p) => switch (this) {
+        _Filter.semua => true,
+        _Filter.petani => p.tipe == TipePelanggan.petani,
+        _Filter.pengepul => p.tipe == TipePelanggan.pengepul,
+        _Filter.milikHuller => p.tipe == TipePelanggan.milikHuller,
+      };
 }
 
 class DaftarPelangganPage extends StatefulWidget {
@@ -29,6 +36,7 @@ class DaftarPelangganPage extends StatefulWidget {
 }
 
 class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
+  final _cari = TextEditingController();
   String _query = '';
   _Filter _filter = _Filter.semua;
 
@@ -38,14 +46,10 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
     widget.controller.muat();
   }
 
-  void _snack(String pesan) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(pesan),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primary,
-      ));
+  @override
+  void dispose() {
+    _cari.dispose();
+    super.dispose();
   }
 
   Future<void> _bukaForm([Pelanggan? p]) async {
@@ -58,7 +62,7 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
         ),
       ),
     );
-    if (pesan != null && mounted) _snack(pesan);
+    if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
   Future<void> _hapus(Pelanggan p) async {
@@ -70,185 +74,147 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
     if (!ok || !mounted) return;
     try {
       await widget.controller.hapus(p.id!);
-      if (mounted) _snack('${p.nama} dihapus');
+      if (mounted) tampilkanPesan(context, '${p.nama} dihapus');
     } on ApiJawaban catch (e) {
-      if (mounted) _snack(e.pesan);
+      if (mounted) tampilkanPesan(context, e.pesan, galat: true);
     }
+  }
+
+  void _bersihkanCari() {
+    _cari.clear();
+    setState(() => _query = '');
   }
 
   List<Pelanggan> get _hasil {
     final q = _query.trim().toLowerCase();
     return widget.controller.items.where((p) {
-      final cocokFilter = switch (_filter) {
-        _Filter.semua => true,
-        _Filter.petani => p.tipe == TipePelanggan.petani,
-        _Filter.pengepul => p.tipe == TipePelanggan.pengepul,
-        _Filter.milikHuller => p.tipe == TipePelanggan.milikHuller,
-      };
       final cocokCari = q.isEmpty ||
           p.nama.toLowerCase().contains(q) ||
           p.kontak.contains(q);
-      return cocokFilter && cocokCari;
+      return _filter.cocok(p) && cocokCari;
     }).toList();
   }
-
-  OutlineInputBorder _border(Color color, [double width = 1]) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: color, width: width),
-      );
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: widget.controller,
-      builder: (context, _) => _buildPage(context),
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, batas) =>
+            _buildPage(context, jarakSamping(batas.maxWidth)),
+      ),
     );
   }
 
-  Widget _buildPage(BuildContext context) {
+  Widget _buildPage(BuildContext context, double samping) {
     final c = widget.controller;
     final hasil = _hasil;
-    final petani = c.items.where((p) => p.tipe == TipePelanggan.petani).length;
-    final pengepul =
-        c.items.where((p) => p.tipe == TipePelanggan.pengepul).length;
+    final petani = c.items.where(_Filter.petani.cocok).length;
+    final pengepul = c.items.where(_Filter.pengepul.cocok).length;
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('fab-tambah'),
         onPressed: () => _bukaForm(),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Pelanggan Baru',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text('Pelanggan Baru'),
       ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => c.muat(paksa: true),
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    const Text(
-                      'Daftar Pelanggan',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text('Kelola data petani & pengepul huller',
-                        style: TextStyle(color: AppColors.textMuted)),
-                    const SizedBox(height: 18),
-                    if (c.galat != null) ...[
-                      _galatBanner(c.galat!, () => c.muat(paksa: true)),
-                      const SizedBox(height: 18),
-                    ],
-                    SummaryHeader(
-                      totalPelanggan: c.items.length,
-                      totalPetani: petani,
-                      totalPengepul: pengepul,
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      onChanged: (v) => setState(() => _query = v),
-                      decoration: InputDecoration(
-                        hintText: 'Cari nama atau no. HP',
-                        hintStyle: const TextStyle(color: AppColors.textMuted),
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                        border: _border(AppColors.border),
-                        enabledBorder: _border(AppColors.border),
-                        focusedBorder: _border(AppColors.primaryLight, 1.5),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final f in _Filter.values) ...[
-                            ChoiceChip(
-                              label: Text(f.label),
-                              selected: _filter == f,
-                              onSelected: (_) => setState(() => _filter = f),
-                              showCheckmark: false,
-                              selectedColor: AppColors.primary,
-                              backgroundColor: Colors.white,
-                              side: const BorderSide(color: AppColors.border),
-                              labelStyle: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: _filter == f
-                                    ? Colors.white
-                                    : AppColors.textDark,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ],
-                      ),
-                    ),
+      body: RefreshIndicator(
+        onRefresh: () => c.muat(paksa: true),
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(samping, 4, samping, 0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  if (c.galat != null) ...[
+                    BannerGalat(c.galat!, onUlangi: () => c.muat(paksa: true)),
                     const SizedBox(height: 16),
-                  ]),
+                  ],
+                  SummaryHeader(
+                    totalPelanggan: c.items.length,
+                    totalPetani: petani,
+                    totalPengepul: pengepul,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _cari,
+                    onChanged: (v) => setState(() => _query = v),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama atau no. HP',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Hapus pencarian',
+                              onPressed: _bersihkanCari,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final f in _Filter.values) ...[
+                          ChoiceChip(
+                            label: Text(
+                                '${f.label} (${c.items.where(f.cocok).length})'),
+                            selected: _filter == f,
+                            onSelected: (_) => setState(() => _filter = f),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ]),
+              ),
+            ),
+            if (c.memuat && c.items.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (hasil.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: c.items.isEmpty
+                    ? KeadaanKosong(
+                        icon: Icons.groups_rounded,
+                        judul: 'Belum ada pelanggan',
+                        pesan:
+                            'Tambahkan petani atau pengepul yang menggiling di huller.',
+                        labelAksi: 'Tambah pelanggan',
+                        onAksi: () => _bukaForm(),
+                      )
+                    : const KeadaanKosong(
+                        icon: Icons.search_off_rounded,
+                        judul: 'Pelanggan tidak ditemukan',
+                        pesan: 'Coba kata kunci lain atau ubah filter tipe.',
+                      ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(samping, 0, samping, 96),
+                sliver: SliverList.separated(
+                  itemCount: hasil.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => PelangganCard(
+                    pelanggan: hasil[i],
+                    onTap: () => _bukaForm(hasil[i]),
+                    onUbah: () => _bukaForm(hasil[i]),
+                    onHapus: () => _hapus(hasil[i]),
+                  ),
                 ),
               ),
-              if (c.memuat)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (hasil.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Text('Pelanggan tidak ditemukan',
-                        style: TextStyle(color: AppColors.textMuted)),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                  sliver: SliverList.separated(
-                    itemCount: hasil.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => PelangganCard(
-                      pelanggan: hasil[i],
-                      onTap: () => _bukaForm(hasil[i]),
-                      onUbah: () => _bukaForm(hasil[i]),
-                      onHapus: () => _hapus(hasil[i]),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
-
-  Widget _galatBanner(String pesan, VoidCallback ulangi) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEAEA),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF5C2C2)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFD64545)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(pesan,
-                  style: const TextStyle(color: Color(0xFFD64545))),
-            ),
-            TextButton(onPressed: ulangi, child: const Text('Ulangi')),
-          ],
-        ),
-      );
 }

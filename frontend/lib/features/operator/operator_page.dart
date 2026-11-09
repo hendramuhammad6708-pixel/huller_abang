@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
 import '../../core/app_theme.dart';
+import '../../core/konfirmasi_hapus.dart';
 import '../../core/sesi.dart';
+import '../../core/ui.dart';
 
 /// Data akun operator dari API.
 class Operator {
@@ -129,16 +131,8 @@ class _OperatorPageState extends State<OperatorPage> {
     super.dispose();
   }
 
-  void _snack(String pesan, {bool galat = false}) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(pesan),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            galat ? const Color(0xFFD64545) : AppColors.primary,
-      ));
-  }
+  void _snack(String pesan, {bool galat = false}) =>
+      tampilkanPesan(context, pesan, galat: galat);
 
   Future<void> _bukaForm({Operator? op}) async {
     final hasil = await showDialog<Map<String, String>>(
@@ -192,34 +186,13 @@ class _OperatorPageState extends State<OperatorPage> {
   }
 
   Future<void> _hapus(Operator op) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.delete_outline_rounded,
-            size: 32, color: Color(0xFFD64545)),
-        title: const Text('Hapus operator?',
-            textAlign: TextAlign.center),
-        content: Text(
-          'Akun "${op.nama}" (${op.username}) akan dihapus permanen.',
-          textAlign: TextAlign.center,
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFD64545)),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+    final ok = await konfirmasiHapus(
+      context,
+      judul: 'Hapus operator?',
+      pesan: 'Akun "${op.nama}" (@${op.username}) akan dihapus permanen. '
+          'Jika hanya ingin memblokir sementara, nonaktifkan saja.',
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     try {
       await _controller.hapus(op.id);
       if (mounted) _snack('${op.nama} dihapus');
@@ -234,187 +207,165 @@ class _OperatorPageState extends State<OperatorPage> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('fab-tambah-operator'),
         onPressed: () => _bukaForm(),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Operator Baru',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text('Operator Baru'),
       ),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: _controller,
-          builder: (context, _) {
-            final c = _controller;
-            return RefreshIndicator(
-              onRefresh: () => c.muat(paksa: true),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-                children: [
-                  const Text(
-                    'Akun Operator',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text('Kelola akun yang boleh mencatat penggilingan',
-                      style: TextStyle(color: AppColors.textMuted)),
-                  const SizedBox(height: 18),
-                  if (c.memuat)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 60),
-                      child:
-                          Center(child: CircularProgressIndicator()),
-                    )
-                  else if (c.galat != null)
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEAEA),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline,
-                              color: Color(0xFFD64545)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: Text(c.galat!,
-                                  style: const TextStyle(
-                                      color: Color(0xFFD64545)))),
-                          TextButton(
-                              onPressed: () => c.muat(paksa: true),
-                              child: const Text('Ulangi')),
+      body: ListenableBuilder(
+        listenable: _controller,
+        builder: (context, _) {
+          final c = _controller;
+          final aktif = c.items.where((o) => o.aktif).length;
+          return RefreshIndicator(
+            onRefresh: () => c.muat(paksa: true),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+              children: [
+                LebarKonten(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (c.memuat && c.items.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 60),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (c.galat != null)
+                        BannerGalat(c.galat!,
+                            onUlangi: () => c.muat(paksa: true))
+                      else if (c.items.isEmpty)
+                        KeadaanKosong(
+                          icon: Icons.badge_rounded,
+                          judul: 'Belum ada operator',
+                          pesan: 'Buat akun untuk karyawan yang mencatat '
+                              'padi masuk di huller.',
+                          labelAksi: 'Tambah operator',
+                          onAksi: () => _bukaForm(),
+                        )
+                      else ...[
+                        JudulBagian('$aktif dari ${c.items.length} akun aktif'),
+                        for (final op in c.items) ...[
+                          _kartuOperator(op),
+                          const SizedBox(height: 10),
                         ],
-                      ),
-                    )
-                  else if (c.items.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 60),
-                      child: Center(
-                        child: Text('Belum ada operator. Tekan "Operator Baru".',
-                            style: TextStyle(color: AppColors.textMuted)),
-                      ),
-                    )
-                  else
-                    for (final op in c.items) ...[
-                      _kartuOperator(op),
-                      const SizedBox(height: 12),
+                      ],
                     ],
-                ],
-              ),
-            );
-          },
-        ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _kartuOperator(Operator op) {
     final inisial = op.nama.isNotEmpty ? op.nama[0].toUpperCase() : '?';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
+    return KartuApp(
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      onTap: () => _bukaForm(op: op),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primaryLight, Color(0xFF5CB88A)],
-                  ),
-                ),
-                child: Text(inisial,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17)),
+          // Akun nonaktif tampil pudar agar mudah dibedakan
+          Opacity(
+            opacity: op.aktif ? 1 : 0.45,
+            child: Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.mint,
+                borderRadius: BorderRadius.circular(AppRadius.sedang),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: Text(inisial,
+                  style: const TextStyle(
+                      color: AppColors.mintText,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(op.nama,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: op.aktif
+                            ? AppColors.textDark
+                            : AppColors.textMuted)),
+                const SizedBox(height: 3),
+                Row(
                   children: [
-                    Text(op.nama,
-                        style: const TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textDark)),
-                    Text('@${op.username}',
-                        style: const TextStyle(
-                            fontSize: 12.5, color: AppColors.textMuted)),
+                    op.aktif
+                        ? const Lencana('Aktif')
+                        : const Lencana('Nonaktif',
+                            latar: AppColors.dangerSoft,
+                            warna: AppColors.danger),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text('@${op.username}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: AppColors.textMuted)),
+                    ),
                   ],
                 ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: op.aktif ? AppColors.mint : const Color(0xFFFFEAEA),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  op.aktif ? 'Aktif' : 'Nonaktif',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: op.aktif
-                        ? AppColors.mintText
-                        : const Color(0xFFD64545),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () => _bukaForm(op: op),
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Ubah'),
+          Tooltip(
+            message: op.aktif ? 'Nonaktifkan akun' : 'Aktifkan akun',
+            child: Switch(
+              key: Key('toggle-${op.id}'),
+              value: op.aktif,
+              onChanged: (_) => _toggleAktif(op),
+            ),
+          ),
+          PopupMenuButton<String>(
+            key: Key('menu-operator-${op.id}'),
+            tooltip: 'Pilihan',
+            icon: const Icon(Icons.more_vert_rounded,
+                color: AppColors.textMuted),
+            onSelected: (v) => switch (v) {
+              'ubah' => _bukaForm(op: op),
+              'reset' => _resetPassword(op),
+              _ => _hapus(op),
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'ubah',
+                child: Row(children: [
+                  Icon(Icons.edit_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Ubah data'),
+                ]),
               ),
-              TextButton.icon(
+              PopupMenuItem(
                 key: Key('reset-${op.id}'),
-                onPressed: () => _resetPassword(op),
-                icon: const Icon(Icons.key_outlined, size: 18),
-                label: const Text('Reset Sandi'),
+                value: 'reset',
+                child: const Row(children: [
+                  Icon(Icons.key_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Reset kata sandi'),
+                ]),
               ),
-              TextButton.icon(
-                key: Key('toggle-${op.id}'),
-                onPressed: () => _toggleAktif(op),
-                icon: Icon(
-                    op.aktif
-                        ? Icons.person_off_outlined
-                        : Icons.person_outline,
-                    size: 18),
-                label: Text(op.aktif ? 'Nonaktifkan' : 'Aktifkan'),
-              ),
-              IconButton(
+              const PopupMenuDivider(),
+              PopupMenuItem(
                 key: Key('hapus-${op.id}'),
-                tooltip: 'Hapus ${op.nama}',
-                onPressed: () => _hapus(op),
-                icon: const Icon(Icons.delete_outline_rounded,
-                    size: 20, color: Color(0xFFD64545)),
+                value: 'hapus',
+                child: const Row(children: [
+                  Icon(Icons.delete_outline_rounded,
+                      size: 20, color: AppColors.danger),
+                  SizedBox(width: 12),
+                  Text('Hapus akun',
+                      style: TextStyle(color: AppColors.danger)),
+                ]),
               ),
             ],
           ),
@@ -422,6 +373,44 @@ class _OperatorPageState extends State<OperatorPage> {
       ),
     );
   }
+}
+
+/// Field kata sandi dengan tombol lihat/sembunyikan.
+class _FieldSandi extends StatefulWidget {
+  final TextEditingController controller;
+  final String label;
+  final bool autofocus;
+
+  const _FieldSandi(
+      {required this.controller, required this.label, this.autofocus = false});
+
+  @override
+  State<_FieldSandi> createState() => _FieldSandiState();
+}
+
+class _FieldSandiState extends State<_FieldSandi> {
+  bool _terlihat = false;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+        controller: widget.controller,
+        obscureText: !_terlihat,
+        autofocus: widget.autofocus,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          helperText: 'Minimal 6 karakter',
+          prefixIcon: const Icon(Icons.lock_outline_rounded),
+          suffixIcon: IconButton(
+            tooltip: _terlihat ? 'Sembunyikan' : 'Lihat',
+            onPressed: () => setState(() => _terlihat = !_terlihat),
+            icon: Icon(_terlihat
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined),
+          ),
+        ),
+        validator: (v) =>
+            (v ?? '').length < 6 ? 'Kata sandi minimal 6 karakter' : null,
+      );
 }
 
 class _OperatorDialog extends StatefulWidget {
@@ -458,78 +447,60 @@ class _OperatorDialogState extends State<_OperatorDialog> {
     });
   }
 
-  OutlineInputBorder _border(Color c) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: c),
-      );
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title:
-          Text(_ubah ? 'Ubah Operator' : 'Operator Baru'),
+      title: Text(_ubah ? 'Ubah Operator' : 'Operator Baru'),
       content: SizedBox(
-        width: 340,
+        width: 360,
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nama,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: 'Nama lengkap',
-                  border: _border(AppColors.border),
-                  enabledBorder: _border(AppColors.border),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nama,
+                  autofocus: !_ubah,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama lengkap',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Nama wajib diisi' : null,
                 ),
-                validator: (v) => (v ?? '').trim().isEmpty
-                    ? 'Nama wajib diisi'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _username,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  labelText: 'Username (untuk login)',
-                  border: _border(AppColors.border),
-                  enabledBorder: _border(AppColors.border),
-                ),
-                validator: (v) => (v ?? '').trim().isEmpty
-                    ? 'Username wajib diisi'
-                    : null,
-              ),
-              if (!_ubah) ...[
                 const SizedBox(height: 14),
                 TextFormField(
-                  controller: _password,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Kata sandi',
-                    helperText: 'Minimal 6 karakter',
-                    border: _border(AppColors.border),
-                    enabledBorder: _border(AppColors.border),
+                  controller: _username,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    helperText: 'Dipakai operator untuk login',
+                    prefixIcon: Icon(Icons.alternate_email_rounded),
                   ),
-                  validator: (v) => (v ?? '').length < 6
-                      ? 'Kata sandi minimal 6 karakter'
-                      : null,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Username wajib diisi' : null,
                 ),
+                if (!_ubah) ...[
+                  const SizedBox(height: 14),
+                  _FieldSandi(controller: _password, label: 'Kata sandi'),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Batal')),
         FilledButton(
           key: const Key('btn-simpan-operator'),
           onPressed: _simpan,
-          style:
-              FilledButton.styleFrom(backgroundColor: AppColors.primary),
           child: const Text('Simpan'),
         ),
       ],
@@ -557,27 +528,17 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Reset Kata Sandi'),
       content: SizedBox(
-        width: 320,
+        width: 340,
         child: Form(
           key: _formKey,
-          child: TextFormField(
-            controller: _sandi,
-            obscureText: true,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Kata sandi baru',
-              helperText: 'Minimal 6 karakter',
-            ),
-            validator: (v) =>
-                (v ?? '').length < 6 ? 'Minimal 6 karakter' : null,
-          ),
+          child: _FieldSandi(
+              controller: _sandi, label: 'Kata sandi baru', autofocus: true),
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Batal')),
         FilledButton(
@@ -586,8 +547,6 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
               Navigator.pop(context, _sandi.text);
             }
           },
-          style:
-              FilledButton.styleFrom(backgroundColor: AppColors.primary),
           child: const Text('Simpan'),
         ),
       ],

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_theme.dart';
+import '../../../core/ui.dart';
 import '../../pelanggan/widgets/format.dart';
 import '../models/padi_masuk.dart';
 
+/// Satu catatan padi masuk. Tanggal tidak ditampilkan di sini karena
+/// riwayat sudah dikelompokkan per tanggal.
 class PadiMasukCard extends StatelessWidget {
   final PadiMasuk padi;
   final VoidCallback onHapus;
@@ -12,24 +15,12 @@ class PadiMasukCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
+    return KartuApp(
+      padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.mint,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.grain_rounded, color: AppColors.mintText),
-          ),
+          const IkonKotak(Icons.grain_rounded,
+              latar: AppColors.goldSoft, warna: AppColors.aksen),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -40,42 +31,57 @@ class PadiMasukCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textDark,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${formatTanggal(padi.tanggal)}'
-                  '${padi.kelasNama.isEmpty ? '' : ' · ${padi.kelasNama}'}',
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textMuted),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (padi.kelasNama.isNotEmpty) ...[
+                      Flexible(
+                        child: Lencana(padi.kelasNama,
+                            latar: AppColors.goldSoft, warna: AppColors.gold),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (padi.catatan.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          padi.catatan,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: AppColors.textMuted),
+                        ),
+                      ),
+                  ],
                 ),
-                if (padi.catatan.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    padi.catatan,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textMuted),
-                  ),
-                ],
               ],
             ),
           ),
-          Text(
-            formatKg(padi.beratKg),
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: AppColors.mintText,
+          const SizedBox(width: 8),
+          // Berat besar (mis. 18.650,75 kg) mengecil, bukan mendesak nama
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 110),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                formatKg(padi.beratKg),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
           ),
           IconButton(
-            tooltip: 'Hapus',
+            tooltip: 'Hapus catatan',
             onPressed: onHapus,
             icon: const Icon(Icons.delete_outline_rounded,
-                size: 20, color: Color(0xFFD64545)),
+                size: 20, color: AppColors.textMuted),
           ),
         ],
       ),

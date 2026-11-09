@@ -27,7 +27,32 @@ class HullerAbangApp extends StatelessWidget {
           // Masih memulihkan sesi: tampilkan splash singkat
           if (sesi.memuat) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: DecoratedBox(
+                decoration: BoxDecoration(gradient: gradienHero),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.grain_rounded,
+                          size: 56, color: AppColors.aksen),
+                      SizedBox(height: 12),
+                      Text('HULLER ABANG',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5)),
+                      SizedBox(height: 24),
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           }
           return sesi.sudahLogin ? const HomeShell() : const LoginPage();

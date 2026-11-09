@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/app_theme.dart';
 import '../../core/konfirmasi_hapus.dart';
+import '../../core/ui.dart';
 import '../pelanggan/widgets/format.dart';
 import 'pengaturan_controller.dart';
 
@@ -42,25 +43,9 @@ class _PengaturanPageState extends State<PengaturanPage> {
     super.dispose();
   }
 
-  void _snack(String pesan) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(pesan),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primary,
-      ));
-  }
+  void _snack(String pesan) => tampilkanPesan(context, pesan);
 
-  void _snackGalat(String pesan) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(pesan),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFFD64545),
-      ));
-  }
+  void _snackGalat(String pesan) => tampilkanPesan(context, pesan, galat: true);
 
   Future<void> _simpanPersen() async {
     if (!_formKey.currentState!.validate()) return;
@@ -114,65 +99,44 @@ class _PengaturanPageState extends State<PengaturanPage> {
         labelText: label,
         helperText: hint,
         suffixText: '%',
-        filled: true,
         fillColor: AppColors.background,
-        border: _border(AppColors.border),
-        enabledBorder: _border(AppColors.border),
-        focusedBorder: _border(AppColors.primaryLight, 1.5),
-        errorBorder: _border(const Color(0xFFD64545)),
-        focusedErrorBorder: _border(const Color(0xFFD64545), 1.5),
-      );
-
-  OutlineInputBorder _border(Color c, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: c, width: w),
       );
 
   Widget _kartu({
     required IconData icon,
     required String judul,
+    required String keterangan,
     required Widget child,
     Widget? trailing,
   }) =>
-      Container(
+      KartuApp(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, size: 20, color: AppColors.mintText),
-                ),
+                IkonKotak(icon, ukuran: 40),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(judul,
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textDark)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(judul,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textDark)),
+                      Text(keterangan,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: AppColors.textMuted)),
+                    ],
+                  ),
                 ),
                 ?trailing,
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             child,
           ],
         ),
@@ -181,40 +145,44 @@ class _PengaturanPageState extends State<PengaturanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: widget.controller,
-          builder: (context, _) => ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            children: [
-              const Text('Pengaturan',
-                  style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark)),
-              const SizedBox(height: 2),
-              const Text('Atur bagi hasil dan jenis beras huller',
-                  style: TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 18),
-              _kartu(
-                icon: Icons.percent_rounded,
-                judul: 'Bagi Hasil Penggilingan',
-                child: _formPersen(),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          children: [
+            LebarKonten(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _kartu(
+                    icon: Icons.percent_rounded,
+                    judul: 'Bagi Hasil Penggilingan',
+                    keterangan: 'Potongan upah dari setiap penggilingan',
+                    child: _formPersen(),
+                  ),
+                  const SizedBox(height: 16),
+                  _kartu(
+                    icon: Icons.category_rounded,
+                    judul: 'Kelas / Jenis Beras',
+                    keterangan: 'Dipilih saat mencatat padi masuk',
+                    trailing: FilledButton.tonalIcon(
+                      key: const Key('btn-tambah-kelas'),
+                      onPressed: _formKelas,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.mint,
+                        foregroundColor: AppColors.primary,
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Tambah'),
+                    ),
+                    child: _daftarKelas(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              _kartu(
-                icon: Icons.grain_rounded,
-                judul: 'Kelas / Jenis Beras',
-                trailing: TextButton.icon(
-                  key: const Key('btn-tambah-kelas'),
-                  onPressed: _formKelas,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Tambah'),
-                ),
-                child: _daftarKelas(),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -246,17 +214,11 @@ class _PengaturanPageState extends State<PengaturanPage> {
           const SizedBox(height: 16),
           _preview(),
           const SizedBox(height: 16),
-          FilledButton.icon(
+          TombolUtama(
             key: const Key('btn-simpan-persen'),
             onPressed: _simpanPersen,
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Simpan Persentase'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-            ),
+            icon: Icons.check_rounded,
+            label: 'Simpan Persentase',
           ),
         ],
       ),
@@ -329,42 +291,49 @@ class _PengaturanPageState extends State<PengaturanPage> {
             style: TextStyle(color: AppColors.textMuted)),
       );
     }
-    return Column(
-      children: [
-        for (final k in kelas)
-          Container(
-            key: Key('kelas-${k.id}'),
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.only(left: 14),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(k.nama,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textDark)),
-                ),
-                IconButton(
-                  tooltip: 'Ubah ${k.nama}',
-                  onPressed: () => _formKelas(k),
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                ),
-                IconButton(
-                  tooltip: 'Hapus ${k.nama}',
-                  onPressed: () => _hapusKelas(k),
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      size: 20, color: Color(0xFFD64545)),
-                ),
-              ],
-            ),
-          ),
-      ],
+    // Daftar kelas dalam satu wadah bergaris, dipisah garis tipis
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.sedang),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < kelas.length; i++) ...[
+            if (i > 0) const Divider(),
+            _barisKelas(kelas[i]),
+          ],
+        ],
+      ),
     );
   }
+
+  Widget _barisKelas(KelasBeras k) => Padding(
+        key: Key('kelas-${k.id}'),
+        padding: const EdgeInsets.only(left: 14),
+        child: Row(
+          children: [
+            const Icon(Icons.circle, size: 8, color: AppColors.primaryLight),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(k.nama,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.textDark)),
+            ),
+            IconButton(
+              tooltip: 'Ubah ${k.nama}',
+              onPressed: () => _formKelas(k),
+              icon: const Icon(Icons.edit_outlined, size: 20),
+            ),
+            IconButton(
+              tooltip: 'Hapus ${k.nama}',
+              onPressed: () => _hapusKelas(k),
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 20, color: AppColors.danger),
+            ),
+          ],
+        ),
+      );
 }
 
 class _KelasDialog extends StatefulWidget {
@@ -407,32 +376,33 @@ class _KelasDialogState extends State<_KelasDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(widget.kelas == null ? 'Kelas Beras Baru' : 'Ubah Kelas Beras'),
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          key: const Key('field-kelas'),
-          controller: _nama,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Nama kelas / jenis',
-            hintText: 'Contoh: Pandan Wangi',
+      content: SizedBox(
+        width: 340,
+        child: Form(
+          key: _formKey,
+          child: TextFormField(
+            key: const Key('field-kelas'),
+            controller: _nama,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Nama kelas / jenis',
+              hintText: 'Contoh: Pandan Wangi',
+            ),
+            validator: _validasi,
+            onFieldSubmitted: (_) => _simpan(),
           ),
-          validator: _validasi,
-          onFieldSubmitted: (_) => _simpan(),
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Batal'),
         ),
         FilledButton(
           key: const Key('btn-simpan-kelas'),
           onPressed: _simpan,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
           child: const Text('Simpan'),
         ),
       ],

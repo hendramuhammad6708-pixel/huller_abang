@@ -6,6 +6,28 @@ import '../../pengaturan/pengaturan_controller.dart';
 import '../models/padi_masuk.dart';
 import '../padi_masuk_controller.dart';
 
+/// Pilihan cepat rentang tanggal.
+enum _Rentang {
+  hariIni('Hari ini'),
+  tujuhHari('7 hari'),
+  bulanIni('Bulan ini');
+
+  final String label;
+  const _Rentang(this.label);
+
+  DateTimeRange get nilai {
+    final n = DateTime.now();
+    final hariIni = DateTime(n.year, n.month, n.day);
+    return switch (this) {
+      _Rentang.hariIni => DateTimeRange(start: hariIni, end: hariIni),
+      _Rentang.tujuhHari => DateTimeRange(
+          start: hariIni.subtract(const Duration(days: 6)), end: hariIni),
+      _Rentang.bulanIni =>
+        DateTimeRange(start: DateTime(n.year, n.month), end: hariIni),
+    };
+  }
+}
+
 /// Filter riwayat: rentang tanggal, pelanggan, dan kelas padi.
 class FilterPadiBar extends StatelessWidget {
   final PadiMasukController controller;
@@ -31,14 +53,9 @@ class FilterPadiBar extends StatelessWidget {
     if (hasil != null) controller.setFilter(rentang: hasil);
   }
 
-  BoxDecoration get _kotak => BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      );
-
   Widget _dropdown({
     required Key key,
+    required IconData icon,
     required String hint,
     required int? nilai,
     required List<(int, String)> pilihan,
@@ -46,26 +63,45 @@ class FilterPadiBar extends StatelessWidget {
   }) {
     // Nilai yang sudah tidak ada di daftar (mis. data dihapus) dianggap kosong
     final ada = pilihan.any((p) => p.$1 == nilai);
+    final aktif = ada && nilai != null;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: _kotak,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int?>(
-          key: key,
-          isExpanded: true,
-          value: ada ? nilai : null,
-          hint: Text(hint),
-          borderRadius: BorderRadius.circular(16),
-          items: [
-            DropdownMenuItem<int?>(value: null, child: Text(hint)),
-            for (final p in pilihan)
-              DropdownMenuItem<int?>(
-                value: p.$1,
-                child: Text(p.$2, overflow: TextOverflow.ellipsis),
+      padding: const EdgeInsets.only(left: 12, right: 6),
+      decoration: BoxDecoration(
+        color: aktif ? AppColors.mint.withValues(alpha: 0.5) : Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.sedang),
+        border: Border.all(
+            color: aktif ? AppColors.primaryLight : AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon,
+              size: 18, color: aktif ? AppColors.primary : AppColors.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int?>(
+                key: key,
+                isExpanded: true,
+                value: ada ? nilai : null,
+                hint: Text(hint, overflow: TextOverflow.ellipsis),
+                borderRadius: BorderRadius.circular(AppRadius.sedang),
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.w600),
+                items: [
+                  DropdownMenuItem<int?>(value: null, child: Text(hint)),
+                  for (final p in pilihan)
+                    DropdownMenuItem<int?>(
+                      value: p.$1,
+                      child: Text(p.$2, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: onChanged,
               ),
-          ],
-          onChanged: onChanged,
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -73,44 +109,43 @@ class FilterPadiBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = controller.rentang;
+    final preset = _Rentang.values.where((p) => p.nilai == r).firstOrNull;
+    final rentangKhusus = r != null && preset == null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                key: const Key('filter-tanggal'),
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => _pilihTanggal(context),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  decoration: _kotak,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.date_range_rounded,
-                          size: 20, color: AppColors.textMuted),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          r == null
-                              ? 'Semua tanggal'
-                              : '${formatTanggal(r.start)} – ${formatTanggal(r.end)}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (r != null)
-                        InkWell(
-                          onTap: () => controller.setFilter(hapusRentang: true),
-                          child: const Icon(Icons.close_rounded, size: 18),
-                        ),
-                    ],
-                  ),
-                ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Semua'),
+                selected: r == null,
+                onSelected: (_) => controller.setFilter(hapusRentang: true),
               ),
-            ),
-          ],
+              for (final p in _Rentang.values) ...[
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: Text(p.label),
+                  selected: preset == p,
+                  onSelected: (_) => controller.setFilter(rentang: p.nilai),
+                ),
+              ],
+              const SizedBox(width: 8),
+              ChoiceChip(
+                key: const Key('filter-tanggal'),
+                avatar: Icon(Icons.date_range_rounded,
+                    size: 18,
+                    color: rentangKhusus ? Colors.white : AppColors.textMuted),
+                label: Text(rentangKhusus
+                    ? '${formatTanggal(r.start)} – ${formatTanggal(r.end)}'
+                    : 'Pilih tanggal'),
+                selected: rentangKhusus,
+                onSelected: (_) => _pilihTanggal(context),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 10),
         Row(
@@ -118,6 +153,7 @@ class FilterPadiBar extends StatelessWidget {
             Expanded(
               child: _dropdown(
                 key: const Key('filter-pelanggan'),
+                icon: Icons.person_outline_rounded,
                 hint: 'Semua pelanggan',
                 nilai: controller.pelangganId,
                 pilihan: [
@@ -133,6 +169,7 @@ class FilterPadiBar extends StatelessWidget {
             Expanded(
               child: _dropdown(
                 key: const Key('filter-kelas'),
+                icon: Icons.category_outlined,
                 hint: 'Semua kelas',
                 nilai: controller.kelasId,
                 pilihan: [for (final k in kelas) (k.id, k.nama)],
@@ -150,7 +187,7 @@ class FilterPadiBar extends StatelessWidget {
               key: const Key('filter-reset'),
               onPressed: controller.resetFilter,
               icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
-              label: const Text('Reset filter'),
+              label: const Text('Hapus semua filter'),
             ),
           ),
       ],
