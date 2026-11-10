@@ -272,6 +272,7 @@ class KeadaanKosong extends StatelessWidget {
   final String judul;
   final String? pesan;
   final String? labelAksi;
+  final IconData ikonAksi;
   final VoidCallback? onAksi;
 
   const KeadaanKosong({
@@ -280,6 +281,7 @@ class KeadaanKosong extends StatelessWidget {
     required this.judul,
     this.pesan,
     this.labelAksi,
+    this.ikonAksi = Icons.add_rounded,
     this.onAksi,
   });
 
@@ -307,7 +309,7 @@ class KeadaanKosong extends StatelessWidget {
               const SizedBox(height: 18),
               OutlinedButton.icon(
                 onPressed: onAksi,
-                icon: const Icon(Icons.add_rounded),
+                icon: Icon(ikonAksi),
                 label: Text(labelAksi!),
               ),
             ],

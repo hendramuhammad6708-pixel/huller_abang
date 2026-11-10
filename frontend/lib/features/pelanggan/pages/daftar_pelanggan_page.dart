@@ -85,6 +85,14 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
     setState(() => _query = '');
   }
 
+  void _resetPencarian() {
+    _cari.clear();
+    setState(() {
+      _query = '';
+      _filter = _Filter.semua;
+    });
+  }
+
   List<Pelanggan> get _hasil {
     final q = _query.trim().toLowerCase();
     return widget.controller.items.where((p) {
@@ -192,10 +200,13 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
                         labelAksi: 'Tambah pelanggan',
                         onAksi: () => _bukaForm(),
                       )
-                    : const KeadaanKosong(
+                    : KeadaanKosong(
                         icon: Icons.search_off_rounded,
                         judul: 'Pelanggan tidak ditemukan',
                         pesan: 'Coba kata kunci lain atau ubah filter tipe.',
+                        labelAksi: 'Hapus pencarian & filter',
+                        ikonAksi: Icons.filter_alt_off_rounded,
+                        onAksi: _resetPencarian,
                       ),
               )
             else

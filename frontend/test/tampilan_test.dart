@@ -4,6 +4,7 @@ import 'package:huller_abang/core/app_theme.dart';
 import 'package:huller_abang/core/ui.dart';
 import 'package:huller_abang/features/auth/login_page.dart';
 import 'package:huller_abang/features/dashboard/dashboard_page.dart';
+import 'package:huller_abang/features/lainnya/lainnya_page.dart';
 import 'package:huller_abang/features/operator/operator_page.dart';
 import 'package:huller_abang/features/pelanggan/models/pelanggan.dart';
 import 'package:huller_abang/features/pelanggan/pages/daftar_pelanggan_page.dart';
@@ -18,6 +19,38 @@ import 'package:huller_abang/features/penggilingan/padi_masuk_controller.dart';
 import 'package:huller_abang/features/penggilingan/pages/form_padi_masuk_page.dart';
 import 'package:huller_abang/features/penggilingan/pages/riwayat_padi_page.dart';
 import 'package:huller_abang/features/penggilingan/widgets/padi_masuk_card.dart';
+import 'package:huller_abang/features/penjemuran/penjemuran_model.dart';
+import 'package:huller_abang/features/penjemuran/penjemuran_page.dart';
+import 'package:huller_abang/features/penjemuran/penjemuran_service.dart';
+
+class _LayananJemurPalsu extends PenjemuranService {
+  @override
+  Future<List<Penjemuran>> ambilSemua({
+    String? status,
+    int? pelangganId,
+    DateTime? tanggalDari,
+    DateTime? tanggalSampai,
+  }) async =>
+      [
+        Penjemuran(
+          id: 1,
+          pelanggan: 'Ibu Sri',
+          kelas: 'Pandan Wangi',
+          tanggalMasuk: DateTime(2026, 11, 8),
+          beratBasah: 300,
+          status: StatusPenjemuran.masuk,
+        ),
+        Penjemuran(
+          id: 2,
+          pelanggan: 'Pak Budi',
+          kelas: 'Medium',
+          tanggalMasuk: DateTime(2026, 11, 6),
+          beratBasah: 450,
+          tanggalMulai: DateTime(2026, 11, 7),
+          status: StatusPenjemuran.dijemur,
+        ),
+      ];
+}
 
 /// Render setiap halaman di layar HP kecil (360 px) dengan tema aplikasi.
 /// Overflow tata letak akan membuat test gagal. Panggilan API di lingkungan
@@ -45,6 +78,32 @@ void main() {
     testWidgets('dashboard', (tester) async {
       await render(tester, DashboardPage(onCatatPadi: () {}, onBukaTab: (_) {}));
       expect(find.byKey(const Key('btn-catat-padi')), findsOneWidget);
+    });
+
+    testWidgets('lainnya', (tester) async {
+      await render(
+        tester,
+        LainnyaPage(
+          onOperator: () {},
+          onPengaturan: () {},
+          onKeluar: () {},
+        ),
+      );
+      expect(find.byKey(const Key('menu-lainnya-operator')), findsOneWidget);
+      expect(find.byKey(const Key('menu-lainnya-pengaturan')), findsOneWidget);
+    });
+
+    testWidgets('penjemuran dengan data', (tester) async {
+      await render(
+        tester,
+        PenjemuranPage(
+          service: _LayananJemurPalsu(),
+          pelanggan: PelangganController(),
+        ),
+      );
+      expect(find.text('Ibu Sri'), findsOneWidget);
+      expect(find.text('Mulai jemur'), findsOneWidget);
+      expect(find.text('Selesaikan penjemuran'), findsOneWidget);
     });
 
     testWidgets('daftar pelanggan', (tester) async {
@@ -99,6 +158,10 @@ void main() {
       await tester.tap(find.byKey(const Key('btn-simpan')));
       await tester.pump();
       expect(find.text('Berat wajib diisi', skipOffstage: false), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('field-berat')), '250');
+      await tester.pump();
+      expect(find.text('Perkiraan bagi hasil'), findsOneWidget);
     });
 
     testWidgets('dialog tambah pelanggan baru', (tester) async {

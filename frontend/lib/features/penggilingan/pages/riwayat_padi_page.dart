@@ -158,10 +158,13 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: c.adaFilter
-                    ? const KeadaanKosong(
+                    ? KeadaanKosong(
                         icon: Icons.filter_alt_off_rounded,
                         judul: 'Tidak ada catatan',
                         pesan: 'Tidak ada padi masuk untuk filter ini.',
+                        labelAksi: 'Hapus filter',
+                        ikonAksi: Icons.filter_alt_off_rounded,
+                        onAksi: c.resetFilter,
                       )
                     : KeadaanKosong(
                         icon: Icons.grain_rounded,

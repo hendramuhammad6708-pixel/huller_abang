@@ -4,6 +4,7 @@ import 'core/app_theme.dart';
 import 'core/sesi.dart';
 import 'core/ui.dart';
 import 'features/dashboard/dashboard_page.dart';
+import 'features/lainnya/lainnya_page.dart';
 import 'features/operator/operator_page.dart';
 import 'features/pelanggan/pages/daftar_pelanggan_page.dart';
 import 'features/pelanggan/pelanggan_controller.dart';
@@ -25,30 +26,48 @@ class _Menu {
   const _Menu(this.icon, this.iconAktif, this.label, this.subjudul);
 }
 
-const _menuDashboard = _Menu(Icons.dashboard_outlined, Icons.dashboard_rounded,
-    'Dashboard', 'Ringkasan operasional huller');
-const _menuPadi = _Menu(Icons.grain_outlined, Icons.grain_rounded,
-    'Padi Masuk', 'Catat & lihat riwayat padi masuk');
-const _menuPenjemuran = _Menu(Icons.wb_sunny_outlined, Icons.wb_sunny,
-    'Penjemuran', 'Mulai & selesaikan penjemuran');
-const _menuPelanggan = _Menu(Icons.groups_outlined, Icons.groups_rounded,
-    'Pelanggan', 'Petani, pengepul & milik huller');
-const _menuOperator = _Menu(Icons.badge_outlined, Icons.badge_rounded,
-    'Operator', 'Akun yang boleh mencatat penggilingan');
-const _menuPengaturan = _Menu(Icons.settings_outlined, Icons.settings_rounded,
-    'Pengaturan', 'Bagi hasil & kelas padi');
+const _menuDashboard = _Menu(
+  Icons.dashboard_outlined,
+  Icons.dashboard_rounded,
+  'Dashboard',
+  'Ringkasan operasional huller',
+);
+const _menuPadi = _Menu(
+  Icons.grain_outlined,
+  Icons.grain_rounded,
+  'Padi Masuk',
+  'Catat & lihat riwayat padi masuk',
+);
+const _menuPenjemuran = _Menu(
+  Icons.wb_sunny_outlined,
+  Icons.wb_sunny,
+  'Penjemuran',
+  'Mulai & selesaikan penjemuran',
+);
+const _menuPelanggan = _Menu(
+  Icons.groups_outlined,
+  Icons.groups_rounded,
+  'Pelanggan',
+  'Petani, pengepul & milik huller',
+);
+const _menuLainnya = _Menu(
+  Icons.grid_view_outlined,
+  Icons.grid_view_rounded,
+  'Lainnya',
+  'Operator, pengaturan & akun',
+);
 
 /// Indeks tab owner, dipakai pintasan dari Dashboard.
 class TabOwner {
+  static const dashboard = 0;
   static const padi = 1;
   static const penjemuran = 2;
   static const pelanggan = 3;
-  static const operator = 4;
-  static const pengaturan = 5;
+  static const lainnya = 4;
 }
 
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
-/// - Owner: Dashboard, Padi Masuk, Penjemuran, Pelanggan, Operator, Pengaturan
+/// - Owner: Dashboard, Padi Masuk, Penjemuran, Pelanggan, Lainnya
 /// - Operator: Padi Masuk dan Penjemuran
 /// Layar sempit memakai bilah navigasi bawah, layar lebar memakai rail kiri.
 class HomeShell extends StatefulWidget {
@@ -87,12 +106,59 @@ class _HomeShellState extends State<HomeShell> {
     if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
+  Future<void> _bukaHalaman(Widget halaman) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => halaman));
+
+  Future<void> _bukaOperator() => _bukaHalaman(
+    _halaman(
+      'Operator',
+      'Akun yang boleh mencatat penggilingan',
+      const OperatorPage(),
+    ),
+  );
+
+  Future<void> _bukaPengaturan() => _bukaHalaman(
+    _halaman(
+      'Pengaturan',
+      'Bagi hasil, persentase & kelas padi',
+      PengaturanPage(controller: _pengaturan),
+    ),
+  );
+
+  /// Halaman tambahan tetap punya judul dan tombol kembali saat dibuka
+  /// dari tab Lainnya atau pintasan Dashboard.
+  Widget _halaman(String judul, String subjudul, Widget isi) => Scaffold(
+    appBar: AppBar(
+      toolbarHeight: 64,
+      titleSpacing: 20,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(judul),
+          Text(
+            subjudul,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    ),
+    body: isi,
+  );
+
   Future<void> _keluar() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.logout_rounded,
-            size: 32, color: AppColors.primary),
+        icon: const Icon(
+          Icons.logout_rounded,
+          size: 32,
+          color: AppColors.primary,
+        ),
         title: const Text('Keluar dari aplikasi?', textAlign: TextAlign.center),
         content: const Text(
           'Anda perlu masuk lagi dengan username dan kata sandi.',
@@ -102,8 +168,9 @@ class _HomeShellState extends State<HomeShell> {
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Keluar'),
@@ -124,9 +191,8 @@ class _HomeShellState extends State<HomeShell> {
       pengaturan: _pengaturan,
     );
     final penjemuran = PenjemuranPage(
-      service: PenjemuranService(
-        tokenGetter: () async => Sesi.instance.token,
-      ),
+      service: PenjemuranService(tokenGetter: () async => Sesi.instance.token),
+      pelanggan: _pelanggan,
     );
 
     // Daftar menu dan halaman mengikuti role (urutan harus sama)
@@ -136,8 +202,7 @@ class _HomeShellState extends State<HomeShell> {
             _menuPadi,
             _menuPenjemuran,
             _menuPelanggan,
-            _menuOperator,
-            _menuPengaturan,
+            _menuLainnya,
           ]
         : const [_menuPadi, _menuPenjemuran];
     final pages = owner
@@ -145,12 +210,17 @@ class _HomeShellState extends State<HomeShell> {
             DashboardPage(
               onCatatPadi: _catatPadi,
               onBukaTab: (i) => setState(() => _index = i),
+              onBukaOperator: _bukaOperator,
+              onBukaPengaturan: _bukaPengaturan,
             ),
             penggilingan,
             penjemuran,
             DaftarPelangganPage(controller: _pelanggan),
-            const OperatorPage(),
-            PengaturanPage(controller: _pengaturan),
+            LainnyaPage(
+              onOperator: _bukaOperator,
+              onPengaturan: _bukaPengaturan,
+              onKeluar: _keluar,
+            ),
           ]
         : <Widget>[penggilingan, penjemuran];
 
@@ -203,8 +273,11 @@ class _HomeShellState extends State<HomeShell> {
                         gradient: gradienHero,
                         borderRadius: BorderRadius.circular(AppRadius.sedang),
                       ),
-                      child: const Icon(Icons.grain_rounded,
-                          color: AppColors.aksen, size: 26),
+                      child: const Icon(
+                        Icons.grain_rounded,
+                        color: AppColors.aksen,
+                        size: 26,
+                      ),
                     ),
                   ),
                   destinations: [
@@ -276,12 +349,20 @@ class _MenuAkun extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(nama,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, color: AppColors.textDark)),
-              Text('${user?.username ?? ''} · $role',
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.textMuted)),
+              Text(
+                nama,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
+              Text(
+                '${user?.username ?? ''} · $role',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ],
           ),
         ),
@@ -307,9 +388,13 @@ class _MenuAkun extends StatelessWidget {
           border: Border.all(color: Colors.white, width: 2),
           boxShadow: AppShadows.kartu,
         ),
-        child: Text(inisial,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w800)),
+        child: Text(
+          inisial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

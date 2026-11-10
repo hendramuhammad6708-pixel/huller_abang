@@ -6,6 +6,7 @@ import '../../../core/sesi.dart';
 import '../../../core/ui.dart';
 import '../../pelanggan/models/pelanggan.dart';
 import '../../pelanggan/pelanggan_controller.dart';
+import '../../pelanggan/widgets/format.dart';
 import '../../pelanggan/widgets/pelanggan_card.dart';
 import '../../pelanggan/widgets/tambah_pelanggan_dialog.dart';
 import '../../pengaturan/pengaturan_controller.dart';
@@ -107,7 +108,11 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     if (_sedangSimpan) return;
 
     if (_pelangganId == null) {
-      tampilkanPesan(context, 'Pelanggan wajib dipilih dari daftar', galat: true);
+      tampilkanPesan(
+        context,
+        'Pelanggan wajib dipilih dari daftar',
+        galat: true,
+      );
       return;
     }
     if (_kelasId == null) {
@@ -127,14 +132,20 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
 
     Pelanggan? pelanggan;
     try {
-      pelanggan = widget.pelanggan.items.firstWhere((p) => p.id == _pelangganId);
+      pelanggan = widget.pelanggan.items.firstWhere(
+        (p) => p.id == _pelangganId,
+      );
     } catch (_) {
       pelanggan = null;
     }
     if (pelanggan == null) {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
-      tampilkanPesan(context, 'Pelanggan tidak valid, pilih kembali dari daftar', galat: true);
+      tampilkanPesan(
+        context,
+        'Pelanggan tidak valid, pilih kembali dari daftar',
+        galat: true,
+      );
       return;
     }
 
@@ -143,7 +154,11 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     if (kelas == null) {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
-      tampilkanPesan(context, 'Kelas padi tidak valid, pilih kembali', galat: true);
+      tampilkanPesan(
+        context,
+        'Kelas padi tidak valid, pilih kembali',
+        galat: true,
+      );
       return;
     }
 
@@ -160,7 +175,8 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     try {
       await widget.controller.tambah(data);
       if (!mounted) return;
-      final pesan = 'Padi masuk ${pelanggan.nama} '
+      final pesan =
+          'Padi masuk ${pelanggan.nama} '
           '(${_berat.text.trim()} kg) dicatat';
       if (lagi) {
         setState(() => _sedangSimpan = false);
@@ -177,7 +193,8 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
       setState(() => _sedangSimpan = false);
       String pesan = 'Gagal menyimpan padi masuk';
       if (e is ApiJawaban) {
-        pesan = e.errors['berat_basah_kg'] ??
+        pesan =
+            e.errors['berat_basah_kg'] ??
             e.errors['berat_kg'] ??
             e.errors['pelanggan_id'] ??
             e.errors['kelas_padi_id'] ??
@@ -204,29 +221,34 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
   Widget _buildForm(BuildContext context) {
     final daftarPelanggan = widget.pelanggan.items;
     final kelas = widget.pengaturan.kelas;
-    final terpilih =
-        daftarPelanggan.where((p) => p.id == _pelangganId).firstOrNull;
+    final terpilih = daftarPelanggan
+        .where((p) => p.id == _pelangganId)
+        .firstOrNull;
     final hariIni = _hariIni();
     final kemarin = hariIni.subtract(const Duration(days: 1));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Catat Padi Masuk')),
-      bottomNavigationBar: BilahAksiBawah(children: [
-        TombolUtama(
-          key: const Key('btn-simpan'),
-          label: 'Simpan',
-          icon: Icons.check_rounded,
-          memuat: _sedangSimpan,
-          onPressed: () => _simpan(lagi: false),
-        ),
-        OutlinedButton.icon(
-          key: const Key('btn-simpan-lagi'),
-          onPressed: _sedangSimpan ? null : () => _simpan(lagi: true),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: const Icon(Icons.playlist_add_rounded),
-          label: const Text('Simpan & Catat Lagi'),
-        ),
-      ]),
+      bottomNavigationBar: BilahAksiBawah(
+        children: [
+          TombolUtama(
+            key: const Key('btn-simpan'),
+            label: 'Simpan',
+            icon: Icons.check_rounded,
+            memuat: _sedangSimpan,
+            onPressed: () => _simpan(lagi: false),
+          ),
+          OutlinedButton.icon(
+            key: const Key('btn-simpan-lagi'),
+            onPressed: _sedangSimpan ? null : () => _simpan(lagi: true),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            icon: const Icon(Icons.playlist_add_rounded),
+            label: const Text('Simpan & Catat Lagi'),
+          ),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -250,8 +272,9 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         onTap: _pilihPelanggan,
                         child: InputDecorator(
                           decoration: InputDecoration(
-                            prefixIcon:
-                                const Icon(Icons.person_outline_rounded),
+                            prefixIcon: const Icon(
+                              Icons.person_outline_rounded,
+                            ),
                             suffixIcon: const Icon(Icons.expand_more_rounded),
                             errorText: state.errorText,
                           ),
@@ -261,20 +284,26 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                                       ? 'Belum ada pelanggan'
                                       : 'Pilih pelanggan',
                                   style: const TextStyle(
-                                      color: AppColors.textMuted),
+                                    color: AppColors.textMuted,
+                                  ),
                                 )
                               : Row(
                                   children: [
                                     Flexible(
-                                      child: Text(terpilih.nama,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
+                                      child: Text(
+                                        terpilih.nama,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Lencana(terpilih.tipe.label,
-                                        latar: terpilih.tipe.latar,
-                                        warna: terpilih.tipe.warna),
+                                    Lencana(
+                                      terpilih.tipe.label,
+                                      latar: terpilih.tipe.latar,
+                                      warna: terpilih.tipe.warna,
+                                    ),
                                   ],
                                 ),
                         ),
@@ -287,8 +316,7 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         key: const Key('btn-tambah-pelanggan-baru'),
-                        onPressed:
-                            _sedangSimpan ? null : _tambahPelangganBaru,
+                        onPressed: _sedangSimpan ? null : _tambahPelangganBaru,
                         icon: const Icon(Icons.add_rounded, size: 20),
                         label: const Text('Tambah Pelanggan Baru'),
                       ),
@@ -305,9 +333,10 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                       children: [
                         if (kelas.isEmpty)
                           const Text(
-                              'Belum ada kelas padi. Owner dapat menambahkannya '
-                              'di menu Pengaturan.',
-                              style: TextStyle(color: AppColors.textMuted)),
+                            'Belum ada kelas padi. Owner dapat menambahkannya '
+                            'di menu Pengaturan.',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -326,9 +355,13 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         if (state.errorText != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 6, left: 12),
-                            child: Text(state.errorText!,
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.danger)),
+                            child: Text(
+                              state.errorText!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -339,11 +372,15 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                     key: const Key('field-berat'),
                     controller: _berat,
                     focusNode: _fokusBerat,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() {}),
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w700),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Berat padi',
                       hintText: 'Contoh: 250,5',
@@ -378,16 +415,19 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                                   setState(() => _tanggal = kemarin),
                             ),
                             ChoiceChip(
-                              avatar: Icon(Icons.event_rounded,
-                                  size: 18,
-                                  color: _tanggal != hariIni &&
-                                          _tanggal != kemarin
-                                      ? Colors.white
-                                      : AppColors.textMuted),
+                              avatar: Icon(
+                                Icons.event_rounded,
+                                size: 18,
+                                color:
+                                    _tanggal != hariIni && _tanggal != kemarin
+                                    ? Colors.white
+                                    : AppColors.textMuted,
+                              ),
                               label: Text(
-                                  _tanggal != hariIni && _tanggal != kemarin
-                                      ? formatTanggal(_tanggal)
-                                      : 'Tanggal lain'),
+                                _tanggal != hariIni && _tanggal != kemarin
+                                    ? formatTanggal(_tanggal)
+                                    : 'Tanggal lain',
+                              ),
                               selected:
                                   _tanggal != hariIni && _tanggal != kemarin,
                               onSelected: (_) => _pilihTanggal(),
@@ -397,13 +437,19 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         if (state.errorText != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 6, left: 12),
-                            child: Text(state.errorText!,
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.danger)),
+                            child: Text(
+                              state.errorText!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  _pratinjauBagiHasil(),
                   const SizedBox(height: 22),
                   TextFormField(
                     key: const Key('field-catatan'),
@@ -423,6 +469,100 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Perkiraan bagi hasil dari berat basah; angka final mengikuti beras bersih.
+  Widget _pratinjauBagiHasil() {
+    final berat = PadiMasukValidator.parseBerat(_berat.text);
+    if (berat == null || berat <= 0) return const SizedBox.shrink();
+
+    final c = widget.pengaturan;
+    final h = BagiHasil.hitung(berat, c.persenUpah, c.persenOperator);
+
+    Widget item(String label, String nilai, {bool tebal = false}) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            nilai,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: tebal ? FontWeight.w800 : FontWeight.w700,
+              color: tebal ? AppColors.primary : AppColors.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.mint.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.sedang),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.calculate_outlined,
+                size: 17,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Perkiraan bagi hasil',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              Text(
+                '${formatPersen(c.persenUpah)}% upah',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              item('Upah huller', formatKg(h.upahKg)),
+              const SizedBox(width: 8),
+              item('Operator', formatKg(h.operatorKg)),
+              const SizedBox(width: 8),
+              item(
+                'Saldo pelanggan',
+                formatKg(h.saldoPelangganKg),
+                tebal: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Perkiraan awal dari berat basah. Hasil final mengikuti beras '
+            'bersih setelah penggilingan.',
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ],
       ),
     );
   }
@@ -446,10 +586,12 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
   Widget build(BuildContext context) {
     final q = _query.trim().toLowerCase();
     final hasil = widget.daftar
-        .where((p) =>
-            q.isEmpty ||
-            p.nama.toLowerCase().contains(q) ||
-            p.kontak.contains(q))
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.nama.toLowerCase().contains(q) ||
+              p.kontak.contains(q),
+        )
         .toList();
 
     return Padding(
@@ -461,11 +603,14 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text('Pilih pelanggan',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark)),
+              child: Text(
+                'Pilih pelanggan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -494,24 +639,33 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
                         final p = hasil[i];
                         final dipilih = p.id == widget.terpilih;
                         return ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 20),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                          ),
                           leading: CircleAvatar(
                             backgroundColor: p.tipe.latar,
                             foregroundColor: p.tipe.warna,
-                            child: Text(p.inisial,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800)),
+                            child: Text(
+                              p.inisial,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
-                          title: Text(p.nama,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(p.kontak.isEmpty
-                              ? p.tipe.label
-                              : '${p.tipe.label} · ${p.kontak}'),
+                          title: Text(
+                            p.nama,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            p.kontak.isEmpty
+                                ? p.tipe.label
+                                : '${p.tipe.label} · ${p.kontak}',
+                          ),
                           trailing: dipilih
-                              ? const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.primary)
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                )
                               : null,
                           onTap: () => Navigator.pop(context, p.id),
                         );
