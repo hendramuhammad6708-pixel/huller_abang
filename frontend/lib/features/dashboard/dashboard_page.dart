@@ -5,6 +5,7 @@ import '../../core/sesi.dart';
 import '../../core/ui.dart';
 import '../../home_shell.dart';
 import '../penggilingan/models/padi_masuk.dart';
+import '../widgets/peringatan_card.dart';
 
 /// Ringkasan dashboard owner dari GET /api/dashboard/summary.
 class DashboardPage extends StatefulWidget {
@@ -36,16 +37,26 @@ class _DashboardPageState extends State<DashboardPage> {
       _memuat = true;
       _galat = null;
     });
-    final jwb = await Sesi.instance.api.get('/dashboard/summary');
-    if (!mounted) return;
-    setState(() {
-      _memuat = false;
-      if (jwb.sukses && jwb.data is Map) {
-        _data = jwb.data as Map<String, dynamic>;
-      } else {
-        _galat = jwb.pesan;
-      }
-    });
+
+    try {
+      final jwb = await Sesi.instance.api.get('/dashboard/summary');
+      if (!mounted) return;
+
+      setState(() {
+        _memuat = false;
+        if (jwb.sukses && jwb.data is Map) {
+          _data = Map<String, dynamic>.from(jwb.data as Map);
+        } else {
+          _galat = jwb.pesan;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _memuat = false;
+        _galat = 'Gagal memuat dashboard. Silakan coba lagi.';
+      });
+    }
   }
 
   String get _sapaan {
@@ -57,6 +68,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   int _angka(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+
+  String _berat(dynamic v) {
+    final n = v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
+    return n % 1 == 0 ? n.toInt().toString() : n.toStringAsFixed(2);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +203,14 @@ class _DashboardPageState extends State<DashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _kartuPadi(d, buka),
+        const SizedBox(height: 12),
+        const PeringatanCard(
+          judul: 'Informasi operasional',
+          pesan: 'Pastikan data pelanggan dan kelas padi sudah tersedia '
+              'sebelum mencatat padi masuk.',
+        ),
+        const SizedBox(height: 26),
         const JudulBagian('Data master'),
         _KartuAngka(
           icon: Icons.groups_rounded,
@@ -240,6 +264,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 const Divider(indent: 72),
                 _Pintasan(
+                  icon: Icons.wb_sunny_rounded,
+                  label: 'Jadwal penjemuran',
+                  latar: AppColors.goldSoft,
+                  warna: AppColors.gold,
+                  onTap: () => buka(TabOwner.penjemuran),
+                ),
+                const Divider(indent: 72),
+                _Pintasan(
                   icon: Icons.person_add_alt_1_rounded,
                   label: 'Tambah pelanggan',
                   latar: AppColors.blueSoft,
@@ -259,6 +291,30 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _kartuPadi(Map<String, dynamic> d, ValueChanged<int>? buka) {
+    final pm = d['padi_masuk'] is Map ? d['padi_masuk'] as Map : const {};
+    final hariIni =
+        pm['hari_ini'] is Map ? pm['hari_ini'] as Map : const {};
+    final total = pm['total_berat_kg'] ??
+        d['total_berat_basah_kg'] ??
+        d['total_berat_kg'] ??
+        0;
+    final jumlah = _angka(pm['jumlah_transaksi'] ?? d['transaksi']);
+    final jumlahHariIni = _angka(hariIni['jumlah_transaksi']);
+    final beratHariIni = _berat(hariIni['total_berat_kg']);
+
+    return _KartuAngka(
+      icon: Icons.inventory_2_rounded,
+      judul: 'Padi masuk',
+      nilai: '$jumlah transaksi',
+      rincian: '${_berat(total)} kg total · '
+          '$jumlahHariIni hari ini ($beratHariIni kg)',
+      latar: AppColors.goldSoft,
+      warna: AppColors.gold,
+      onTap: buka == null ? null : () => buka(TabOwner.padi),
     );
   }
 }

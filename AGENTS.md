@@ -1,21 +1,20 @@
 # AGENTS.md
 
-## Layout and branches
+## Layout
 
-- Root: no manifest/scripts; apps `backend/` (Laravel 13 API), `frontend/` (Flutter). API contracts in `docs/api/*.md` (operator, pelanggan, pengaturan, padi-masuk); update them on payload/validation changes.
-- `main`/`develop` same full-app commit; branch from `develop`. Backend CI on pushes/PRs to `develop` (Pint + tests). Frontend CI only on `feature/fe-flutter` (run `flutter analyze` and `flutter test` locally).
-- Root `README.md` paths (`backend/src/...`) stale — standard Laravel under `backend/`.
-- Backend modules: auth, dashboard summary, operator, pelanggan, pengaturan/kelas-padi, padi masuk + penjemuran. Frontend Penggilingan is placeholder; dashboard returns `transaksi: 0`, `stok: 0`.
+- Root has no manifests/scripts; apps `backend/` (Laravel 13 API) and `frontend/` (Flutter). API contracts in `docs/api/*.md` (auth/operator/pelanggan/pengaturan/padi-masuk); update them when payload/validation changes.
+- Root `README.md` paths (`backend/src/...`) are stale — standard Laravel layout under `backend/`.
+- Backend modules: auth, dashboard summary, operator, pelanggan, pengaturan/kelas-padi, padi masuk + penjemuran. Frontend `Penggilingan` is placeholder; dashboard summary currently returns `transaksi: 0`, `stok: 0`.
 
 ## Backend (`backend/`, Laravel 13)
 
-Run from `backend/`.
+Run from `backend/`. PHP ^8.3 (composer allows ^8.3); Laravel ^13.17.
 
-- Setup: `composer setup` (install, copy `.env.example`→`.env`, key, migrate, build Vite). Needs MySQL DB `huller_abang`; no seeders.
-- Seed: set `OWNER_PASSWORD` (optional `OWNER_USERNAME`) in `.env`, `php artisan db:seed` (also seeds default kelas padi/pengaturan). `OwnerSeeder` warns/skips if password empty.
+- Setup: `composer setup` (install, copy `.env.example`→`.env`, key, migrate, build Vite). Needs MySQL DB `huller_abang`; no seeders by default.
+- Seed: set `OWNER_PASSWORD` (optional `OWNER_USERNAME`) in `.env`, `php artisan db:seed` (seeds owner + default `kelas_padi`/`pengaturan`). `OwnerSeeder` warns/skips if password empty.
 - Dev: `composer dev` (`php artisan dev`). For Android emulator expose `php artisan serve --host=0.0.0.0 --port=8000`. Vite `npm run dev`/`npm run build`.
-- Tests: `composer test` (clears config, runs `artisan test`); focused `php artisan test --filter=...` or `php artisan test tests/Feature/FooTest.php`. Feature tests use `RefreshDatabase` against MySQL `huller_abang_test` (phpunit.xml sets only `DB_CONNECTION`/`DB_DATABASE`; creds from `.env`) — create DB or tests fail. Don't switch to sqlite without agreement. CI uses PHP 8.4 (composer allows ^8.3).
-- Style: `vendor/bin/pint` (CI `vendor/bin/pint --test`).
+- Tests: `composer test` (clears config, runs `artisan test`); focused `php artisan test --filter=...` or `php artisan test tests/Feature/FooTest.php`. Feature tests use `RefreshDatabase` against MySQL `huller_abang_test` (phpunit.xml sets `DB_CONNECTION=mysql`, `DB_DATABASE=huller_abang_test`; creds from `.env`) — create DB or tests fail. Don't switch to sqlite without agreement.
+- Style: `vendor/bin/pint` (`vendor/bin/pint --test`).
 
 ### API conventions
 - Responses via `App\Support\ApiResponse::sukses($message, $data=null, $status=200)` / `::gagal($message, $status, $errors=[])` → `{success,message,data,errors?}`. No hand-rolled JSON.

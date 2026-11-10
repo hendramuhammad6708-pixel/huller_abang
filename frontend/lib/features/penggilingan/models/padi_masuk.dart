@@ -26,18 +26,40 @@ class PadiMasuk {
     // Nama relasi bisa datar (`nama_pelanggan`) atau bersarang (`pelanggan.nama`)
     final pelanggan = j['pelanggan'];
     final kelas = j['kelas_padi'];
+    final berat = j['berat_basah_kg'] ?? j['berat_kg'];
+
+    int? pelangganId = j['pelanggan_id'] as int?;
+    if (pelangganId == null && pelanggan is Map) {
+      pelangganId = pelanggan['id'] as int?;
+    }
+    pelangganId ??= 0;
+
+    int? kelasId = j['kelas_padi_id'] as int?;
+    if (kelasId == null && kelas is Map) {
+      kelasId = kelas['id'] as int?;
+    }
+    kelasId ??= 0;
+
+    String pelangganNama = (j['nama_pelanggan'] as String?) ??
+        (pelanggan is Map ? pelanggan['nama'] as String? : null) ??
+        '';
+    String kelasNama = (j['nama_kelas'] as String?) ??
+        (kelas is Map ? kelas['nama_kelas'] as String? : null) ??
+        '';
+
+    final tanggalStr = j['tanggal'] as String?;
+    final tanggal = tanggalStr != null ? DateTime.parse(tanggalStr) : DateTime.now();
+
     return PadiMasuk(
       id: j['id'] as int?,
-      tanggal: DateTime.parse(j['tanggal'] as String),
-      pelangganId: j['pelanggan_id'] as int,
-      pelangganNama: (j['nama_pelanggan'] as String?) ??
-          (pelanggan is Map ? pelanggan['nama'] as String? : null) ??
-          '',
-      kelasId: j['kelas_padi_id'] as int,
-      kelasNama: (j['nama_kelas'] as String?) ??
-          (kelas is Map ? kelas['nama_kelas'] as String? : null) ??
-          '',
-      beratKg: (j['berat_kg'] as num).toDouble(),
+      tanggal: tanggal,
+      pelangganId: pelangganId,
+      pelangganNama: pelangganNama,
+      kelasId: kelasId,
+      kelasNama: kelasNama,
+      beratKg: berat is num
+          ? berat.toDouble()
+          : double.tryParse(berat?.toString() ?? '') ?? 0,
       catatan: (j['catatan'] as String?) ?? '',
     );
   }
@@ -46,7 +68,7 @@ class PadiMasuk {
         'tanggal': tanggalApi(tanggal),
         'pelanggan_id': pelangganId,
         'kelas_padi_id': kelasId,
-        'berat_kg': beratKg,
+        'berat_basah_kg': beratKg,
         'catatan': catatan.isEmpty ? null : catatan,
       };
 }

@@ -12,6 +12,8 @@ import 'features/pengaturan/pengaturan_page.dart';
 import 'features/penggilingan/padi_masuk_controller.dart';
 import 'features/penggilingan/pages/form_padi_masuk_page.dart';
 import 'features/penggilingan/penggilingan_page.dart';
+import 'features/penjemuran/penjemuran_page.dart';
+import 'features/penjemuran/penjemuran_service.dart';
 
 /// Satu menu navigasi utama.
 class _Menu {
@@ -27,6 +29,8 @@ const _menuDashboard = _Menu(Icons.dashboard_outlined, Icons.dashboard_rounded,
     'Dashboard', 'Ringkasan operasional huller');
 const _menuPadi = _Menu(Icons.grain_outlined, Icons.grain_rounded,
     'Padi Masuk', 'Catat & lihat riwayat padi masuk');
+const _menuPenjemuran = _Menu(Icons.wb_sunny_outlined, Icons.wb_sunny,
+    'Penjemuran', 'Mulai & selesaikan penjemuran');
 const _menuPelanggan = _Menu(Icons.groups_outlined, Icons.groups_rounded,
     'Pelanggan', 'Petani, pengepul & milik huller');
 const _menuOperator = _Menu(Icons.badge_outlined, Icons.badge_rounded,
@@ -37,14 +41,15 @@ const _menuPengaturan = _Menu(Icons.settings_outlined, Icons.settings_rounded,
 /// Indeks tab owner, dipakai pintasan dari Dashboard.
 class TabOwner {
   static const padi = 1;
-  static const pelanggan = 2;
-  static const operator = 3;
-  static const pengaturan = 4;
+  static const penjemuran = 2;
+  static const pelanggan = 3;
+  static const operator = 4;
+  static const pengaturan = 5;
 }
 
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
-/// - Owner: Dashboard, Padi Masuk, Pelanggan, Operator, Pengaturan
-/// - Operator: hanya Padi Masuk (modul lain menyusul)
+/// - Owner: Dashboard, Padi Masuk, Penjemuran, Pelanggan, Operator, Pengaturan
+/// - Operator: Padi Masuk dan Penjemuran
 /// Layar sempit memakai bilah navigasi bawah, layar lebar memakai rail kiri.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -118,17 +123,23 @@ class _HomeShellState extends State<HomeShell> {
       pelanggan: _pelanggan,
       pengaturan: _pengaturan,
     );
+    final penjemuran = PenjemuranPage(
+      service: PenjemuranService(
+        tokenGetter: () async => Sesi.instance.token,
+      ),
+    );
 
     // Daftar menu dan halaman mengikuti role (urutan harus sama)
     final menu = owner
         ? const [
             _menuDashboard,
             _menuPadi,
+            _menuPenjemuran,
             _menuPelanggan,
             _menuOperator,
             _menuPengaturan,
           ]
-        : const [_menuPadi];
+        : const [_menuPadi, _menuPenjemuran];
     final pages = owner
         ? <Widget>[
             DashboardPage(
@@ -136,11 +147,12 @@ class _HomeShellState extends State<HomeShell> {
               onBukaTab: (i) => setState(() => _index = i),
             ),
             penggilingan,
+            penjemuran,
             DaftarPelangganPage(controller: _pelanggan),
             const OperatorPage(),
             PengaturanPage(controller: _pengaturan),
           ]
-        : <Widget>[penggilingan];
+        : <Widget>[penggilingan, penjemuran];
 
     // Jaga indeks tetap valid saat role berganti
     final index = _index < pages.length ? _index : 0;
