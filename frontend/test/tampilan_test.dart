@@ -10,6 +10,7 @@ import 'package:huller_abang/features/pelanggan/pages/daftar_pelanggan_page.dart
 import 'package:huller_abang/features/pelanggan/pages/form_pelanggan_page.dart';
 import 'package:huller_abang/features/pelanggan/pelanggan_controller.dart';
 import 'package:huller_abang/features/pelanggan/widgets/pelanggan_card.dart';
+import 'package:huller_abang/features/pelanggan/widgets/tambah_pelanggan_dialog.dart';
 import 'package:huller_abang/features/pengaturan/pengaturan_controller.dart';
 import 'package:huller_abang/features/pengaturan/pengaturan_page.dart';
 import 'package:huller_abang/features/penggilingan/models/padi_masuk.dart';
@@ -98,6 +99,19 @@ void main() {
       await tester.tap(find.byKey(const Key('btn-simpan')));
       await tester.pump();
       expect(find.text('Berat wajib diisi', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('dialog tambah pelanggan baru', (tester) async {
+      await render(
+        tester,
+        TambahPelangganDialog(controller: PelangganController()),
+      );
+      expect(find.byKey(const Key('field-nama-pelanggan-baru')), findsOneWidget);
+      expect(find.byKey(const Key('tipe-baru-milik_huller')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('btn-simpan-pelanggan-baru')));
+      await tester.pump();
+      expect(find.text('Nama wajib diisi'), findsOneWidget);
     });
 
     testWidgets('pengaturan', (tester) async {

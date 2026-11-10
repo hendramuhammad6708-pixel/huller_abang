@@ -54,7 +54,11 @@ class PelangganController extends Controller
     {
         $pelanggan = Pelanggan::create($request->validated());
 
-        return ApiResponse::sukses('Pelanggan berhasil ditambahkan', ['id' => $pelanggan->id], 201);
+        return ApiResponse::sukses(
+            'Pelanggan berhasil ditambahkan',
+            $pelanggan->only(['id', 'nama', 'kontak', 'tipe_pelanggan']),
+            201
+        );
     }
 
     // PUT /api/pelanggan/{id}

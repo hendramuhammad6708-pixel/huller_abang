@@ -44,7 +44,10 @@ class PelangganTest extends TestCase
         $this->postJson('/api/pelanggan', $this->data())
             ->assertStatus(201)
             ->assertJsonPath('success', true)
-            ->assertJsonStructure(['data' => ['id']]);
+            ->assertJsonPath('data.nama', 'Pak Budi')
+            ->assertJsonPath('data.kontak', '081234567890')
+            ->assertJsonPath('data.tipe_pelanggan', 'petani')
+            ->assertJsonStructure(['data' => ['id', 'nama', 'kontak', 'tipe_pelanggan']]);
 
         $this->assertDatabaseHas('pelanggan', ['nama' => 'Pak Budi']);
     }

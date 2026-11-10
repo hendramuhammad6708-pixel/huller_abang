@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/sesi.dart';
 import '../../../core/ui.dart';
 import '../../pelanggan/models/pelanggan.dart';
 import '../../pelanggan/pelanggan_controller.dart';
 import '../../pelanggan/widgets/pelanggan_card.dart';
+import '../../pelanggan/widgets/tambah_pelanggan_dialog.dart';
 import '../../pengaturan/pengaturan_controller.dart';
 import '../models/padi_masuk.dart';
 import '../padi_masuk_controller.dart';
@@ -32,6 +34,7 @@ class FormPadiMasukPage extends StatefulWidget {
 
 class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
   final _formKey = GlobalKey<FormState>();
+  final _pelangganFieldKey = GlobalKey<FormFieldState<int>>();
   final _berat = TextEditingController();
   final _catatan = TextEditingController();
   final _fokusBerat = FocusNode();
@@ -81,7 +84,22 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
         terpilih: _pelangganId,
       ),
     );
-    if (id != null) setState(() => _pelangganId = id);
+    if (id != null) {
+      setState(() => _pelangganId = id);
+      _pelangganFieldKey.currentState?.didChange(id);
+    }
+  }
+
+  Future<void> _tambahPelangganBaru() async {
+    final hasil = await tampilkanTambahPelanggan(
+      context,
+      controller: widget.pelanggan,
+    );
+    if (hasil == null || hasil.id == null || !mounted) return;
+
+    setState(() => _pelangganId = hasil.id);
+    _pelangganFieldKey.currentState?.didChange(hasil.id);
+    tampilkanPesan(context, '${hasil.nama} ditambahkan');
   }
 
   Future<void> _simpan({required bool lagi}) async {
@@ -171,44 +189,61 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                 children: [
                   // Pelanggan: ketuk untuk membuka daftar yang bisa dicari
                   const JudulBagian('Pelanggan'),
-                  FormField<int>(
+                  KeyedSubtree(
                     key: const Key('field-pelanggan'),
-                    validator: (_) =>
-                        PadiMasukValidator.pelanggan(_pelangganId),
-                    builder: (state) => InkWell(
-                      borderRadius: BorderRadius.circular(AppRadius.sedang),
-                      onTap: _pilihPelanggan,
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.person_outline_rounded),
-                          suffixIcon: const Icon(Icons.expand_more_rounded),
-                          errorText: state.errorText,
+                    child: FormField<int>(
+                      key: _pelangganFieldKey,
+                      validator: (_) =>
+                          PadiMasukValidator.pelanggan(_pelangganId),
+                      builder: (state) => InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.sedang),
+                        onTap: _pilihPelanggan,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            prefixIcon:
+                                const Icon(Icons.person_outline_rounded),
+                            suffixIcon: const Icon(Icons.expand_more_rounded),
+                            errorText: state.errorText,
+                          ),
+                          child: terpilih == null
+                              ? Text(
+                                  daftarPelanggan.isEmpty
+                                      ? 'Belum ada pelanggan'
+                                      : 'Pilih pelanggan',
+                                  style: const TextStyle(
+                                      color: AppColors.textMuted),
+                                )
+                              : Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(terpilih.nama,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Lencana(terpilih.tipe.label,
+                                        latar: terpilih.tipe.latar,
+                                        warna: terpilih.tipe.warna),
+                                  ],
+                                ),
                         ),
-                        child: terpilih == null
-                            ? Text(
-                                daftarPelanggan.isEmpty
-                                    ? 'Belum ada pelanggan'
-                                    : 'Pilih pelanggan',
-                                style:
-                                    const TextStyle(color: AppColors.textMuted),
-                              )
-                            : Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(terpilih.nama,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Lencana(terpilih.tipe.label,
-                                      latar: terpilih.tipe.latar,
-                                      warna: terpilih.tipe.warna),
-                                ],
-                              ),
                       ),
                     ),
                   ),
+                  if (Sesi.instance.owner) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        key: const Key('btn-tambah-pelanggan-baru'),
+                        onPressed:
+                            _sedangSimpan ? null : _tambahPelangganBaru,
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        label: const Text('Tambah Pelanggan Baru'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   // Kelas: tombol pilihan, cukup satu ketukan
                   const JudulBagian('Kelas padi'),

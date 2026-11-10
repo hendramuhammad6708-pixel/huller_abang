@@ -40,10 +40,26 @@ class PelangganController extends ChangeNotifier {
   }
 
   /// Tambah; lempar [ApiJawaban] bila validasi 422 (cek `errors` per field).
-  Future<void> tambah(Pelanggan p) async {
+  /// Mengembalikan pelanggan hasil simpan (termasuk id dari server).
+  Future<Pelanggan> tambah(Pelanggan p) async {
     final jwb = await _sesi.api.post('/pelanggan', p.keApi());
     if (!jwb.sukses) throw jwb;
-    await muat(paksa: true);
+
+    var hasil = p;
+    if (jwb.data is Map) {
+      final data = Map<String, dynamic>.from(jwb.data as Map);
+      if (data['id'] != null && data['nama'] is String) {
+        hasil = Pelanggan.dariApi(data);
+      }
+    }
+
+    if (hasil.id != null && !_items.any((e) => e.id == hasil.id)) {
+      _items = [..._items, hasil]
+        ..sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+      notifyListeners();
+    }
+
+    return hasil;
   }
 
   /// Ubah; lempar [ApiJawaban] bila validasi 422 atau 404.
