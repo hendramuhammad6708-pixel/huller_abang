@@ -1,47 +1,50 @@
 # AGENTS.md
 
-## Branch layout (read this first)
+## Layout and branches
 
-- `main` is intentionally empty (README + `.gitkeep` only). The Laravel backend was reverted on purpose via PR #3 (`revert-2-chore/be-setup-laravel`). Do **not** recreate backend scaffolding on `main`.
-- Real code lives on branches; check it out before working (no root manifest exists, only files inside `backend/` or `frontend/`):
-  - `origin/develop` — Laravel backend in `backend/`
-  - `origin/features` — static frontend login prototype in `frontend/src/`
-- Start PRs from / into the branch you worked on (`develop`, `features`, topic branches like `halaman-daftar-pelanggan`), not into `main`.
-- CI exists via GitHub Actions (no pre-commit hooks, no root lint/typecheck scripts): `backend-laravel.yml` runs Pint + tests on `develop`; `frontend-flutter.yml` runs `flutter analyze` + `flutter test` on `feature/fe-flutter`. Verify locally the same way before pushing.
+- Root: no manifest/scripts; apps `backend/` (Laravel 13 API), `frontend/` (Flutter). API contracts in `docs/api/*.md` (operator, pelanggan, pengaturan, padi-masuk); update them on payload/validation changes.
+- `main`/`develop` same full-app commit; branch from `develop`. Backend CI on pushes/PRs to `develop` (Pint + tests). Frontend CI only on `feature/fe-flutter` (run `flutter analyze` and `flutter test` locally).
+- Root `README.md` paths (`backend/src/...`) stale — standard Laravel under `backend/`.
+- Backend modules: auth, dashboard summary, operator, pelanggan, pengaturan/kelas-padi, padi masuk + penjemuran. Frontend Penggilingan is placeholder; dashboard returns `transaksi: 0`, `stok: 0`.
 
-## Backend (`origin/develop`, Laravel 13 / PHP 8.4+)
+## Backend (`backend/`, Laravel 13)
 
-Run all commands from `backend/`.
+Run from `backend/`.
 
-- One-time setup: `composer setup` — `composer install`, copies `.env.example` → `.env`, `key:generate`, `migrate --force`, `npm install`, `npm run build`.
-  - Needs a local MySQL DB named `huller_abang` (see `backend/.env.example`); frontend dev URL is `FRONTEND_URL=http://localhost:5173`.
-- Dev server: `composer dev` (= `php artisan dev`). Vite assets: `npm run dev` / `npm run build`.
-- Tests: `composer test` (runs `config:clear` then `artisan test`); focused: `php artisan test --filter=...` or `php artisan test tests/Feature/FooTest.php`.
-  - Tests hit a **MySQL** database `huller_abang_test` per `phpunit.xml` (`DB_CONNECTION=mysql`) and use `RefreshDatabase` — create that empty DB first or every Feature test fails. Do not switch back to sqlite `:memory:` without team agreement.
-- Style: Laravel Pint is a dev dependency (`vendor/bin/pint`), default config (no `pint.json`).
+- Setup: `composer setup` (install, copy `.env.example`→`.env`, key, migrate, build Vite). Needs MySQL DB `huller_abang`; no seeders.
+- Seed: set `OWNER_PASSWORD` (optional `OWNER_USERNAME`) in `.env`, `php artisan db:seed` (also seeds default kelas padi/pengaturan). `OwnerSeeder` warns/skips if password empty.
+- Dev: `composer dev` (`php artisan dev`). For Android emulator expose `php artisan serve --host=0.0.0.0 --port=8000`. Vite `npm run dev`/`npm run build`.
+- Tests: `composer test` (clears config, runs `artisan test`); focused `php artisan test --filter=...` or `php artisan test tests/Feature/FooTest.php`. Feature tests use `RefreshDatabase` against MySQL `huller_abang_test` (phpunit.xml sets only `DB_CONNECTION`/`DB_DATABASE`; creds from `.env`) — create DB or tests fail. Don't switch to sqlite without agreement. CI uses PHP 8.4 (composer allows ^8.3).
+- Style: `vendor/bin/pint` (CI `vendor/bin/pint --test`).
 
-### API conventions (must follow)
+### API conventions
+- Responses via `App\Support\ApiResponse::sukses($message, $data=null, $status=200)` / `::gagal($message, $status, $errors=[])` → `{success,message,data,errors?}`. No hand-rolled JSON.
+- JSON errors (422 as `errors: [{field,message}]`, 401/404/405) registered in `bootstrap/app.php` via `App\Support\ApiExceptions::daftarkan()` and apply only to `api/*` (web routes unchanged).
+- Add routes at bottom comment in `backend/routes/api.php`. Health: `GET /api/health` (DB check), framework `/up`.
+- Pagination: `page`/`limit` (max 100) → `data.items` + `data.meta.total`. Exception: `GET /api/kelas-padi` returns all items with `meta.total` only.
+- Roles: middleware alias `role` (`App\Http\Middleware\CheckRole`), returns 403 via `ApiResponse::gagal` — no ad-hoc checks.
+- Padi masuk/penjemuran open to `owner`/`operator` (auth:sanctum). Routes grouped in `api.php`; update `docs/api/padi-masuk.md` on changes.
 
-- Every response goes through `App\Support\ApiResponse::sukses()` / `::gagal()` → `{success, message, data, errors?}`. Do not hand-roll error JSON. Note `sukses()` takes `(message, data, status)`, `gagal()` takes `(message, status, errors)`.
-- JSON error rendering (422 validation as `errors: [{field, message}]`, 404, 405) is registered globally in `bootstrap/app.php` via `App\Support\ApiExceptions::daftarkan()`; it only applies to `api/*`. Web routes (`routes/web.php`) never return this shape.
-- New API modules add their route lines at the marked spot at the bottom of `backend/routes/api.php`. Health check: `GET /api/health`.
-- List endpoints must paginate (`page`/`limit`) and return `data.items` + `data.meta.total` (Sprint convention in root `README.md`).
-- Role guard is the middleware alias `role` (e.g. `role:owner`), implemented by `App\Http\Middleware\CheckRole` — it returns 403 via `ApiResponse::gagal`. Add new role-restricted routes with this alias, not ad-hoc checks.
+### Padi masuk / penjemuran (rules)
+- Validation in FormRequests: `PadiMasukRequest` (tanggal Y-m-d, pelanggan_id exists non-deleted, kelas_padi_id exists, berat_basah_kg numeric>0 max 2 decimals <=99999999.99, catatan trimmed nullable max 1000). `RiwayatPadiMasukRequest` filters (`search`, `pelanggan_id`, `kelas_padi_id`, `status` in `PadiMasuk::STATUS`, `tanggal_dari/sampai` with `after_or_equal`, pagination). History exposed via `PadiMasukController@index`/`log`.
+- State/calcs in `App\Services\PadiMasukService`: status `MASUK`→`DIJEMUR`→`SIAP_GILING`. Start drying sets `penjemuran.tanggal_mulai` (defaults today), updates status to `DIJEMUR`. Finish drying requires existing `penjemuran`, computes `durasi_hari = floor(diff in days mulai->selesai)` (>=0), `persen_susut = round((berat_basah - berat_kering)/berat_basah*100,2)`, sets `penjemuran` fields + status `SIAP_GILING`. If `durasi_hari < PadiMasuk::AMBANG_DURASI_HARI` (warning <2 hari) adds warning message in log keterangan. `berat_kering_kg` must be <= `berat_basah_kg` enforced by controller/service flow (no explicit global rule shown except service logic).
+- Audit: every create/update/start/finish writes `log_padi_masuk` via `tulisLog` with `user_id`, `nama_pengguna`, `aksi`, `perubahan[]` (`{field,sebelum,sesudah}`), `keterangan`. `PadiMasukController@log` returns logs.
 
-### Schema facts that differ from Laravel defaults
+### Schema / auth
+- `users`: no email, login by unique `username` (`nama`, `username`, `password`, `role` enum `owner`|`operator`, `aktif`). `User` casts `password` hashed; `OperatorController` also does `Hash::make` (only once). Inactive users auth with correct password → 403; deleting operator revokes tokens.
+- Auth Sanctum bearer tokens (`HasApiTokens`), no session auth.
+- Tables Indonesian/unprefixed: `users`, `pelanggan` (soft deletes), `pengaturan` (key/value), `kelas_padi`, `padi_masuk`, `penjemuran`, `log_padi_masuk`.
 
-- `users` has **no email**: login is by unique `username`; columns are `nama`, `password`, `role` enum (`owner`|`operator`), `aktif` boolean.
-- Auth is Sanctum tokens (`HasApiTokens`), no session auth for the API.
-- Tables are Indonesian and unprefixed: `users`, `pelanggan` (soft deletes), `pengaturan` (key/value), `kelas_padi`. Keep new tables in that naming style.
-- `OwnerSeeder` reads `OWNER_USERNAME` / `OWNER_PASSWORD` from `.env` and **skips creating the owner with a warning if the password is empty**.
+## Frontend (`frontend/`, Flutter)
 
-## Frontend (`origin/features`)
+Run all commands from `frontend/`.
 
-- Plain static HTML/CSS/JS — no `package.json`, no build step; open the pages directly or via any static server.
-- `frontend/src/services/authApi.js` is a deliberate mock ("server palsu") with hardcoded accounts; it must be replaced with real `fetch()` calls to the backend API.
-- Session/guards live in `frontend/src/router/guard.js`: key `huller_session`, stored in `localStorage` when "remember" is set, else `sessionStorage`; use `requireLogin(role)` / `redirectIfLoggedIn()`.
+- Commands: `flutter pub get`, `flutter analyze`, `flutter test`, `flutter run`. The only test file is `frontend/test/widget_test.dart`; focused: `flutter test test/widget_test.dart --plain-name "nama test"`. Tests cover login widgets, pelanggan model/validator, settings parsers, and local bagi-hasil math — no HTTP is mocked.
+- API base URL is a compile-time define in `lib/core/api_client.dart`: `--dart-define=API_URL=http://<host>:8000/api`. Default is `http://10.0.2.2:8000/api` (Android emulator → host). On Windows/web use `http://localhost:8000/api`; a physical device needs the computer's LAN IP. The backend must listen on `0.0.0.0` for emulator/device access. Android cleartext HTTP is enabled.
+- Auth lives in `lib/core/sesi.dart`: singleton `Sesi.instance`, token persisted in `SharedPreferences` under key `token`, restored by calling `GET /me` at startup. Role guard is `Sesi.instance.owner`; `lib/home_shell.dart` builds tabs by role (owner: Dashboard/Pelanggan/Operator/Pengaturan/Penggilingan; operator: only Penggilingan).
+- Data is loaded from the real API. Pelanggan and Operator both fetch with `limit=100`; Pelanggan search/type filtering is client-side. Penggilingan is still a placeholder, so the padi masuk/penjemuran API has no Flutter consumer yet.
 
 ## Conventions
 
-- Indonesian everywhere: identifiers, table/column names, API messages, code comments, and commit messages (e.g. "tambah migrasi users, pelanggan"). Keep new user-facing strings and commits in Indonesian.
+- Indonesian everywhere: identifiers, table/column names, API messages, code comments, and commit messages.
 - Commit messages mix `feat:`/`fix:`/`chore:` prefixes with plain Indonesian sentences; either is acceptable.
