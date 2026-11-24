@@ -1,5 +1,6 @@
-
 import 'package:flutter/material.dart';
+
+import '../../core/app_theme.dart';
 
 class PeringatanCard extends StatelessWidget {
   final String judul;
@@ -12,7 +13,7 @@ class PeringatanCard extends StatelessWidget {
     required this.judul,
     required this.pesan,
     this.ikon = Icons.info_outline_rounded,
-    this.warna = const Color(0xFF9A6200),
+    this.warna = AppColors.gold,
   });
 
   @override
@@ -21,10 +22,8 @@ class PeringatanCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: warna.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: warna.withValues(alpha: 0.25),
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.sedang),
+        border: Border.all(color: warna.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,17 +36,14 @@ class PeringatanCard extends StatelessWidget {
               children: [
                 Text(
                   judul,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: warna,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: warna),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   pesan,
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF46566D),
+                    color: AppColors.textDark,
                   ),
                 ),
               ],

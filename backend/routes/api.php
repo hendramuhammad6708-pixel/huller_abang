@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BagiHasilController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KelasPadiController;
 use App\Http\Controllers\OperatorController;
@@ -29,6 +30,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+    Route::post('/bagi-hasil', [BagiHasilController::class, 'hitung']);
+
+    // Data master pendukung form padi masuk (baca saja untuk operator)
+    Route::get('/pelanggan', [PelangganController::class, 'index']);
+    Route::get('/pengaturan', [PengaturanController::class, 'show']);
+    Route::get('/kelas-padi', [KelasPadiController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum', 'role:owner'])
@@ -51,7 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/padi-masuk', [PadiMasukController::class, 'store']);
     Route::get('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'show']);
     Route::put('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'update']);
-    Route::delete('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'destroy']);
+    Route::post('/padi-masuk/{padiMasuk}/void', [PadiMasukController::class, 'void']);
+    Route::post('/padi-masuk/{padiMasuk}/selesai-giling', [PadiMasukController::class, 'selesaikanGiling']);
     Route::get('/padi-masuk/{padiMasuk}/log', [PadiMasukController::class, 'log']);
 
     // Penjemuran (frontend Flutter)
@@ -65,17 +73,15 @@ Route::middleware('auth:sanctum')->group(function () {
 // Modul di bawah ini butuh token Sanctum + role owner (lihat docs/api/*.md)
 Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
     // --- Pelanggan (feature/be-pelanggann)
-    Route::get('/pelanggan', [PelangganController::class, 'index']);
     Route::post('/pelanggan', [PelangganController::class, 'store']);
+    Route::get('/pelanggan/{id}/riwayat-transaksi', [PelangganController::class, 'riwayatTransaksi']);
     Route::get('/pelanggan/{id}', [PelangganController::class, 'show']);
     Route::put('/pelanggan/{id}', [PelangganController::class, 'update']);
     Route::delete('/pelanggan/{id}', [PelangganController::class, 'destroy']);
 
     // --- Pengaturan & kelas padi (feature/be-pengaturan)
-    Route::get('/pengaturan', [PengaturanController::class, 'show']);
     Route::put('/pengaturan', [PengaturanController::class, 'update']);
 
-    Route::get('/kelas-padi', [KelasPadiController::class, 'index']);
     Route::post('/kelas-padi', [KelasPadiController::class, 'store']);
     Route::put('/kelas-padi/{id}', [KelasPadiController::class, 'update']);
     Route::delete('/kelas-padi/{id}', [KelasPadiController::class, 'destroy']);

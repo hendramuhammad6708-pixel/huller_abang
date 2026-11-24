@@ -57,6 +57,34 @@ class PengaturanTest extends TestCase
             ->assertJsonPath('data.persen_hak_operator', 5);
     }
 
+    public function test_update_menyimpan_log_nilai_lama_dan_baru(): void
+    {
+        $userId = User::where('username', 'pemilik')->value('id');
+
+        $this->putJson('/api/pengaturan', ['persen_upah' => 6, 'persen_hak_operator' => 2.5])
+            ->assertOk();
+
+        $this->assertDatabaseHas('log_pengaturan', [
+            'user_id' => $userId,
+            'upah_lama' => 5,
+            'upah_baru' => 6,
+            'hak_operator_lama' => 5,
+            'hak_operator_baru' => 2.5,
+        ]);
+
+        $this->putJson('/api/pengaturan', ['persen_upah' => 7])
+            ->assertOk();
+
+        $this->assertDatabaseHas('log_pengaturan', [
+            'user_id' => $userId,
+            'upah_lama' => 6,
+            'upah_baru' => 7,
+            'hak_operator_lama' => 2.5,
+            'hak_operator_baru' => 2.5,
+        ]);
+        $this->assertDatabaseCount('log_pengaturan', 2);
+    }
+
     public function test_nilai_tidak_valid_ditolak(): void
     {
         foreach ([101, -1, 'abc', ''] as $nilai) {

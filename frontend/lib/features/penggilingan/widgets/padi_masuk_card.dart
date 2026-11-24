@@ -9,9 +9,17 @@ import '../models/padi_masuk.dart';
 /// riwayat sudah dikelompokkan per tanggal.
 class PadiMasukCard extends StatelessWidget {
   final PadiMasuk padi;
-  final VoidCallback onHapus;
+  final VoidCallback onCetak;
+  final VoidCallback onBagikan;
+  final VoidCallback onVoid;
 
-  const PadiMasukCard({super.key, required this.padi, required this.onHapus});
+  const PadiMasukCard({
+    super.key,
+    required this.padi,
+    required this.onCetak,
+    required this.onBagikan,
+    required this.onVoid,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +27,11 @@ class PadiMasukCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
       child: Row(
         children: [
-          const IkonKotak(Icons.grain_rounded,
-              latar: AppColors.goldSoft, warna: AppColors.aksen),
+          const IkonKotak(
+            Icons.grain_rounded,
+            latar: AppColors.goldSoft,
+            warna: AppColors.aksen,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -41,8 +52,27 @@ class PadiMasukCard extends StatelessWidget {
                   children: [
                     if (padi.kelasNama.isNotEmpty) ...[
                       Flexible(
-                        child: Lencana(padi.kelasNama,
-                            latar: AppColors.goldSoft, warna: AppColors.gold),
+                        child: Lencana(
+                          padi.kelasNama,
+                          latar: AppColors.goldSoft,
+                          warna: AppColors.gold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (padi.status == 'void' ||
+                        padi.status == 'selesai_giling') ...[
+                      Lencana(
+                        padi.statusLabel.isEmpty
+                            ? padi.status.toUpperCase()
+                            : padi.statusLabel,
+                        key: Key('status-${padi.id ?? 0}'),
+                        latar: padi.status == 'void'
+                            ? AppColors.dangerSoft
+                            : AppColors.mint,
+                        warna: padi.status == 'void'
+                            ? AppColors.danger
+                            : AppColors.mintText,
                       ),
                       const SizedBox(width: 8),
                     ],
@@ -53,7 +83,9 @@ class PadiMasukCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 12.5, color: AppColors.textMuted),
+                            fontSize: 12.5,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                   ],
@@ -77,12 +109,45 @@ class PadiMasukCard extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            tooltip: 'Hapus catatan',
-            onPressed: onHapus,
-            icon: const Icon(Icons.delete_outline_rounded,
-                size: 20, color: AppColors.textMuted),
-          ),
+          if (padi.status != 'void') ...[
+            IconButton(
+              key: Key('btn-cetak-${padi.id ?? 0}'),
+              tooltip: 'Cetak',
+              onPressed: onCetak,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              icon: const Icon(
+                Icons.print_outlined,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
+            ),
+            IconButton(
+              key: Key('btn-bagikan-${padi.id ?? 0}'),
+              tooltip: 'Bagikan via WhatsApp',
+              onPressed: onBagikan,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              icon: const Icon(
+                Icons.share_outlined,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+          if (padi.status != 'void')
+            IconButton(
+              key: Key('btn-void-${padi.id ?? 0}'),
+              tooltip: 'Batalkan (Void)',
+              onPressed: onVoid,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              icon: const Icon(
+                Icons.cancel_outlined,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
+            ),
         ],
       ),
     );

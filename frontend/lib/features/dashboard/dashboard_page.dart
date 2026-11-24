@@ -88,33 +88,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   _sambutan(),
                   const SizedBox(height: 24),
-                  if (_memuat)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (_galat != null)
-                    BannerGalat(_galat!, onUlangi: _muat)
-                  else if (_data != null)
-                    _ringkasan(_data!),
-                  const SizedBox(height: 24),
-                  const JudulBagian('Segera hadir'),
-                  const _ModulMenyusul(
-                    icon: Icons.savings_outlined,
-                    judul: 'Stok Upah',
-                    pesan: 'Dihitung otomatis dari transaksi giling',
-                  ),
-                  const SizedBox(height: 10),
-                  const _ModulMenyusul(
-                    icon: Icons.account_balance_wallet_outlined,
-                    judul: 'Saldo Titip',
-                    pesan: 'Saldo beras milik pelanggan',
-                  ),
-                  const SizedBox(height: 10),
-                  const _ModulMenyusul(
-                    icon: Icons.point_of_sale_outlined,
-                    judul: 'Penjualan',
-                    pesan: 'Pencatatan penjualan beras',
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isiRingkasan(),
                   ),
                 ],
               ),
@@ -123,6 +99,31 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       ),
     );
+  }
+
+  /// Isi di bawah kartu sambutan: penampang, galat, atau ringkasan.
+  /// Kunci berbeda agar AnimatedSwitcher memutar transisi saat berganti.
+  Widget _isiRingkasan() {
+    if (_memuat) {
+      return Column(
+        key: const ValueKey('memuat'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: const [
+          Skeleton(height: 190, radius: 26),
+          SizedBox(height: 12),
+          SkeletonKartu(baris: 3),
+          SizedBox(height: 12),
+          SkeletonKartu(baris: 3),
+        ],
+      );
+    }
+    if (_galat != null) {
+      return BannerGalat(_galat!, onUlangi: _muat);
+    }
+    if (_data != null) {
+      return _ringkasan(_data!);
+    }
+    return const SizedBox.shrink();
   }
 
   /// Kartu sambutan dengan aksi utama harian.
@@ -142,14 +143,20 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.wb_sunny_rounded,
-                    size: 14, color: AppColors.primaryDark),
+                const Icon(
+                  Icons.wb_sunny_rounded,
+                  size: 14,
+                  color: AppColors.primaryDark,
+                ),
                 const SizedBox(width: 6),
-                Text(formatTanggal(DateTime.now()),
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDark)),
+                Text(
+                  formatTanggal(DateTime.now()),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
               ],
             ),
           ),
@@ -157,7 +164,9 @@ class _DashboardPageState extends State<DashboardPage> {
           Text(
             '$_sapaan,',
             style: TextStyle(
-                fontSize: 15, color: Colors.white.withValues(alpha: 0.85)),
+              fontSize: 15,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
           ),
           Text(
             nama,
@@ -171,9 +180,11 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(height: 6),
-          Text('Ada padi yang baru datang? Catat sekarang agar bagi hasil '
-              'langsung terhitung.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.85))),
+          Text(
+            'Ada padi yang baru datang? Catat sekarang agar bagi hasil '
+            'langsung terhitung.',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+          ),
           if (widget.onCatatPadi != null) ...[
             const SizedBox(height: 18),
             FilledButton.icon(
@@ -205,9 +216,12 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         _kartuPadi(d, buka),
         const SizedBox(height: 12),
+        _kartuPenjemuran(d, buka),
+        const SizedBox(height: 12),
         const PeringatanCard(
           judul: 'Informasi operasional',
-          pesan: 'Pastikan data pelanggan dan kelas padi sudah tersedia '
+          pesan:
+              'Pastikan data pelanggan dan kelas padi sudah tersedia '
               'sebelum mencatat padi masuk.',
         ),
         const SizedBox(height: 26),
@@ -216,7 +230,8 @@ class _DashboardPageState extends State<DashboardPage> {
           icon: Icons.groups_rounded,
           judul: 'Pelanggan',
           nilai: '${_angka(d['total_pelanggan'])}',
-          rincian: '${_angka(tipe['petani'])} petani · '
+          rincian:
+              '${_angka(tipe['petani'])} petani · '
               '${_angka(tipe['pengepul'])} pengepul · '
               '${_angka(tipe['milik_huller'])} milik huller',
           onTap: buka == null ? null : () => buka(TabOwner.pelanggan),
@@ -240,7 +255,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: _KartuAngka(
                   icon: Icons.badge_rounded,
                   judul: 'Operator aktif',
-                  nilai: '${_angka(d['operator_aktif'])}'
+                  nilai:
+                      '${_angka(d['operator_aktif'])}'
                       '/${_angka(d['total_operator'])}',
                   latar: AppColors.blueSoft,
                   warna: AppColors.blue,
@@ -294,11 +310,40 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /// Dua ubin operasional penjemuran dari ringkasan API.
+  Widget _kartuPenjemuran(Map<String, dynamic> d, ValueChanged<int>? buka) {
+    final pj = d['penjemuran'] is Map ? d['penjemuran'] as Map : const {};
+
+    return Row(
+      children: [
+        Expanded(
+          child: _KartuAngka(
+            icon: Icons.wb_sunny_rounded,
+            judul: 'Sedang dijemur',
+            nilai: '${_angka(pj['sedang_dijemur'])}',
+            latar: AppColors.goldSoft,
+            warna: AppColors.gold,
+            onTap: buka == null ? null : () => buka(TabOwner.penjemuran),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _KartuAngka(
+            icon: Icons.task_alt_rounded,
+            judul: 'Siap digiling',
+            nilai: '${_angka(pj['siap_giling'])}',
+            onTap: buka == null ? null : () => buka(TabOwner.penjemuran),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _kartuPadi(Map<String, dynamic> d, ValueChanged<int>? buka) {
     final pm = d['padi_masuk'] is Map ? d['padi_masuk'] as Map : const {};
-    final hariIni =
-        pm['hari_ini'] is Map ? pm['hari_ini'] as Map : const {};
-    final total = pm['total_berat_kg'] ??
+    final hariIni = pm['hari_ini'] is Map ? pm['hari_ini'] as Map : const {};
+    final total =
+        pm['total_berat_kg'] ??
         d['total_berat_basah_kg'] ??
         d['total_berat_kg'] ??
         0;
@@ -310,7 +355,8 @@ class _DashboardPageState extends State<DashboardPage> {
       icon: Icons.inventory_2_rounded,
       judul: 'Padi masuk',
       nilai: '$jumlah transaksi',
-      rincian: '${_berat(total)} kg total · '
+      rincian:
+          '${_berat(total)} kg total · '
           '$jumlahHariIni hari ini ($beratHariIni kg)',
       latar: AppColors.goldSoft,
       warna: AppColors.gold,
@@ -340,19 +386,25 @@ class _KartuAngka extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final teksNilai = Text(nilai,
-        style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-            color: AppColors.textDark));
-    final teksJudul = Text(judul,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textMuted));
+    final teksNilai = Text(
+      nilai,
+      style: const TextStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
+        color: AppColors.textDark,
+      ),
+    );
+    final teksJudul = Text(
+      judul,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+      ),
+    );
 
     // Tanpa rincian: ubin tegak (dipakai berpasangan dalam satu baris)
     if (rincian == null) {
@@ -366,8 +418,11 @@ class _KartuAngka extends StatelessWidget {
                 IkonKotak(icon, latar: latar, warna: warna, ukuran: 40),
                 const Spacer(),
                 if (onTap != null)
-                  const Icon(Icons.arrow_outward_rounded,
-                      size: 18, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
               ],
             ),
             const SizedBox(height: 14),
@@ -390,9 +445,13 @@ class _KartuAngka extends StatelessWidget {
               children: [
                 teksJudul,
                 teksNilai,
-                Text(rincian!,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textMuted)),
+                Text(
+                  rincian!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
@@ -421,57 +480,16 @@ class _Pintasan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: IkonKotak(icon, latar: latar, warna: warna, ukuran: 40),
-        title: Text(label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, color: AppColors.textDark)),
-        trailing: const Icon(Icons.chevron_right_rounded),
-      );
-}
-
-/// Modul yang belum tersedia, ditandai jelas agar tidak dikira data nol.
-class _ModulMenyusul extends StatelessWidget {
-  final IconData icon;
-  final String judul;
-  final String pesan;
-
-  const _ModulMenyusul(
-      {required this.icon, required this.judul, required this.pesan});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(AppRadius.besar),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            IkonKotak(icon,
-                latar: AppColors.background,
-                warna: AppColors.textMuted,
-                ukuran: 40),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(judul,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textDark)),
-                  Text(pesan,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textMuted)),
-                ],
-              ),
-            ),
-            const Lencana('Segera',
-                latar: AppColors.goldSoft, warna: AppColors.gold),
-          ],
-        ),
-      );
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    leading: IkonKotak(icon, latar: latar, warna: warna, ukuran: 40),
+    title: Text(
+      label,
+      style: const TextStyle(
+        fontWeight: FontWeight.w700,
+        color: AppColors.textDark,
+      ),
+    ),
+    trailing: const Icon(Icons.chevron_right_rounded),
+  );
 }

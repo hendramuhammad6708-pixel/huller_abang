@@ -25,18 +25,51 @@ class _Menu {
   const _Menu(this.icon, this.iconAktif, this.label, this.subjudul);
 }
 
-const _menuDashboard = _Menu(Icons.dashboard_outlined, Icons.dashboard_rounded,
-    'Dashboard', 'Ringkasan operasional huller');
-const _menuPadi = _Menu(Icons.grain_outlined, Icons.grain_rounded,
-    'Padi Masuk', 'Catat & lihat riwayat padi masuk');
-const _menuPenjemuran = _Menu(Icons.wb_sunny_outlined, Icons.wb_sunny,
-    'Penjemuran', 'Mulai & selesaikan penjemuran');
-const _menuPelanggan = _Menu(Icons.groups_outlined, Icons.groups_rounded,
-    'Pelanggan', 'Petani, pengepul & milik huller');
-const _menuOperator = _Menu(Icons.badge_outlined, Icons.badge_rounded,
-    'Operator', 'Akun yang boleh mencatat penggilingan');
-const _menuPengaturan = _Menu(Icons.settings_outlined, Icons.settings_rounded,
-    'Pengaturan', 'Bagi hasil & kelas padi');
+const _menuDashboard = _Menu(
+  Icons.dashboard_outlined,
+  Icons.dashboard_rounded,
+  'Dashboard',
+  'Ringkasan operasional huller',
+);
+const _menuPadi = _Menu(
+  Icons.grain_outlined,
+  Icons.grain_rounded,
+  'Padi Masuk',
+  'Catat & lihat riwayat padi masuk',
+);
+const _menuPenjemuran = _Menu(
+  Icons.wb_sunny_outlined,
+  Icons.wb_sunny,
+  'Penjemuran',
+  'Mulai & selesaikan penjemuran',
+);
+const _menuPelanggan = _Menu(
+  Icons.groups_outlined,
+  Icons.groups_rounded,
+  'Pelanggan',
+  'Petani, pengepul & milik huller',
+);
+const _menuOperator = _Menu(
+  Icons.badge_outlined,
+  Icons.badge_rounded,
+  'Operator',
+  'Akun yang boleh mencatat penggilingan',
+);
+const _menuPengaturan = _Menu(
+  Icons.settings_outlined,
+  Icons.settings_rounded,
+  'Pengaturan',
+  'Bagi hasil & kelas padi',
+);
+
+/// Tujuan "Lainnya" di bilah bawah: menampung menu yang tidak muat
+/// (Pelanggan, Operator, Pengaturan) lewat lembar bawah.
+const _menuLainnya = _Menu(
+  Icons.grid_view_outlined,
+  Icons.grid_view_rounded,
+  'Lainnya',
+  'Pelanggan, operator & pengaturan',
+);
 
 /// Indeks tab owner, dipakai pintasan dari Dashboard.
 class TabOwner {
@@ -50,7 +83,10 @@ class TabOwner {
 /// Kerangka utama setelah login: navigasi menyesuaikan role.
 /// - Owner: Dashboard, Padi Masuk, Penjemuran, Pelanggan, Operator, Pengaturan
 /// - Operator: Padi Masuk dan Penjemuran
-/// Layar sempit memakai bilah navigasi bawah, layar lebar memakai rail kiri.
+///
+/// Layar lebar memakai rail kiri berisi semua menu. Layar HP memakai bilah
+/// bawah maksimal 4 tujuan (panduan Material): tiga tab utama ditambah
+/// "Lainnya" yang membuka lembar bawah berisi menu sisanya.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -91,8 +127,11 @@ class _HomeShellState extends State<HomeShell> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.logout_rounded,
-            size: 32, color: AppColors.primary),
+        icon: const Icon(
+          Icons.logout_rounded,
+          size: 32,
+          color: AppColors.primary,
+        ),
         title: const Text('Keluar dari aplikasi?', textAlign: TextAlign.center),
         content: const Text(
           'Anda perlu masuk lagi dengan username dan kata sandi.',
@@ -102,8 +141,9 @@ class _HomeShellState extends State<HomeShell> {
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Keluar'),
@@ -112,6 +152,70 @@ class _HomeShellState extends State<HomeShell> {
       ),
     );
     if (ok == true) await Sesi.instance.logout();
+  }
+
+  /// Lembar bawah "Lainnya": menu yang tidak muat di bilah bawah HP.
+  /// Memilih salah satu menutup lembar lalu memindahkan halaman aktif.
+  Future<void> _bukaLainnya(List<_Menu> menu) async {
+    // Warna aksen mengikuti urutan menu sisanya:
+    // Pelanggan, Operator, Pengaturan.
+    final latarAksen = [AppColors.mint, AppColors.blueSoft, AppColors.goldSoft];
+    final warnaAksen = [AppColors.mintText, AppColors.blue, AppColors.gold];
+    final sisanya = menu.skip(3).toList();
+
+    final dipilih = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 4, 24, 8),
+              child: Text(
+                'Lainnya',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ),
+            for (var i = 0; i < sisanya.length; i++)
+              ListTile(
+                onTap: () => Navigator.pop(ctx, i),
+                leading: IkonKotak(
+                  sisanya[i].iconAktif,
+                  latar: latarAksen[i],
+                  warna: warnaAksen[i],
+                ),
+                title: Text(
+                  sisanya[i].label,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  sisanya[i].subjudul,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                trailing: _index == 3 + i
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textMuted,
+                      ),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (dipilih != null) setState(() => _index = 3 + dipilih);
   }
 
   @override
@@ -124,9 +228,7 @@ class _HomeShellState extends State<HomeShell> {
       pengaturan: _pengaturan,
     );
     final penjemuran = PenjemuranPage(
-      service: PenjemuranService(
-        tokenGetter: () async => Sesi.instance.token,
-      ),
+      service: PenjemuranService(tokenGetter: () async => Sesi.instance.token),
     );
 
     // Daftar menu dan halaman mengikuti role (urutan harus sama)
@@ -160,6 +262,19 @@ class _HomeShellState extends State<HomeShell> {
     // NavigationBar butuh minimal 2 tujuan; operator cukup tanpa navigasi
     final adaNavigasi = menu.length > 1;
     final lebar = MediaQuery.sizeOf(context).width >= 840;
+
+    // Bilah bawah maksimal 4 tujuan; sisanya lewat lembar "Lainnya".
+    // Indeks halaman tetap 0..5 sehingga pintasan Dashboard tidak berubah.
+    final adaLainnya = menu.length > 4;
+    final tujuanNavbar = adaLainnya ? [...menu.take(3), _menuLainnya] : menu;
+    final pilihanNavbar = adaLainnya ? (index <= 2 ? index : 3) : index;
+    void pilihNavbar(int i) {
+      if (adaLainnya && i == 3) {
+        _bukaLainnya(menu);
+      } else {
+        setState(() => _index = i);
+      }
+    }
 
     final isi = IndexedStack(index: index, children: pages);
 
@@ -203,8 +318,11 @@ class _HomeShellState extends State<HomeShell> {
                         gradient: gradienHero,
                         borderRadius: BorderRadius.circular(AppRadius.sedang),
                       ),
-                      child: const Icon(Icons.grain_rounded,
-                          color: AppColors.aksen, size: 26),
+                      child: const Icon(
+                        Icons.grain_rounded,
+                        color: AppColors.aksen,
+                        size: 26,
+                      ),
                     ),
                   ),
                   destinations: [
@@ -233,10 +351,10 @@ class _HomeShellState extends State<HomeShell> {
                 ],
               ),
               child: NavigationBar(
-                selectedIndex: index,
-                onDestinationSelected: (i) => setState(() => _index = i),
+                selectedIndex: pilihanNavbar,
+                onDestinationSelected: pilihNavbar,
                 destinations: [
-                  for (final m in menu)
+                  for (final m in tujuanNavbar)
                     NavigationDestination(
                       icon: Icon(m.icon),
                       selectedIcon: Icon(m.iconAktif),
@@ -276,12 +394,20 @@ class _MenuAkun extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(nama,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, color: AppColors.textDark)),
-              Text('${user?.username ?? ''} · $role',
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.textMuted)),
+              Text(
+                nama,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
+              Text(
+                '${user?.username ?? ''} · $role',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ],
           ),
         ),
@@ -307,9 +433,13 @@ class _MenuAkun extends StatelessWidget {
           border: Border.all(color: Colors.white, width: 2),
           boxShadow: AppShadows.kartu,
         ),
-        child: Text(inisial,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w800)),
+        child: Text(
+          inisial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

@@ -10,8 +10,17 @@ void main() {
     test('sesuai contoh desain (825 kg, upah 5%, operator 30%)', () {
       final h = BagiHasil.hitung(825, 5, 30);
       expect(h.upahKg, closeTo(41.25, 0.001));
-      expect(h.operatorKg, closeTo(12.375, 0.001));
+      expect(h.operatorKg, closeTo(12.38, 0.001));
+      expect(h.hullerKg, closeTo(28.87, 0.001));
       expect(h.saldoPelangganKg, closeTo(783.75, 0.001));
+    });
+
+    test('pembulatan dua desimal (41,25 kg x 5% = 2,06)', () {
+      final h = BagiHasil.hitung(41.25, 5, 5);
+      expect(h.upahKg, closeTo(2.06, 0.001));
+      expect(h.operatorKg, closeTo(0.10, 0.001));
+      expect(h.hullerKg, closeTo(1.96, 0.001));
+      expect(h.saldoPelangganKg, closeTo(39.19, 0.001));
     });
 
     test('operator 5% dari upah', () {
@@ -59,7 +68,10 @@ void main() {
     });
 
     test('inisial tanpa sapaan', () {
-      const p = Pelanggan(nama: 'H. Solihin Wijaya', tipe: TipePelanggan.petani);
+      const p = Pelanggan(
+        nama: 'H. Solihin Wijaya',
+        tipe: TipePelanggan.petani,
+      );
       expect(p.inisial, 'SW');
     });
   });

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/app_theme.dart';
 import '../../core/konfirmasi_hapus.dart';
+import '../../core/konfirmasi_pengaturan.dart';
 import '../../core/ui.dart';
 import '../pelanggan/widgets/format.dart';
 import 'pengaturan_controller.dart';
@@ -20,10 +21,14 @@ class _PengaturanPageState extends State<PengaturanPage> {
   static const _contohKg = 825.0;
 
   final _formKey = GlobalKey<FormState>();
-  late final _upah =
-      TextEditingController(text: formatPersen(widget.controller.persenUpah));
+  late final _upah = TextEditingController(
+    text: formatPersen(widget.controller.persenUpah),
+  );
   late final _operator = TextEditingController(
-      text: formatPersen(widget.controller.persenOperator));
+    text: formatPersen(widget.controller.persenOperator),
+  );
+  BagiHasil? _previewHasil;
+  int _hitungVersi = 0;
 
   @override
   void initState() {
@@ -33,7 +38,35 @@ class _PengaturanPageState extends State<PengaturanPage> {
         _upah.text = formatPersen(widget.controller.persenUpah);
         _operator.text = formatPersen(widget.controller.persenOperator);
       }
+      _hitungPreview();
     });
+  }
+
+  Future<void> _hitungPreview() async {
+    final u = parsePersen(_upah.text);
+    final o = parsePersen(_operator.text);
+    if (u == null || o == null || u < 0 || u > 100 || o < 0 || o > 100) {
+      _previewHasil = null;
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final versi = ++_hitungVersi;
+    try {
+      final hasil = await widget.controller.hitungBagiHasil(
+        _contohKg,
+        persenUpah: u,
+        persenHakOperator: o,
+      );
+      if (!mounted || versi != _hitungVersi) return;
+      setState(() => _previewHasil = hasil);
+    } on ApiJawaban catch (_) {
+      if (!mounted || versi != _hitungVersi) return;
+      setState(() => _previewHasil = BagiHasil.hitung(_contohKg, u, o));
+    } catch (_) {
+      if (!mounted || versi != _hitungVersi) return;
+      setState(() => _previewHasil = BagiHasil.hitung(_contohKg, u, o));
+    }
   }
 
   @override
@@ -51,10 +84,13 @@ class _PengaturanPageState extends State<PengaturanPage> {
     if (!_formKey.currentState!.validate()) return;
     final upah = parsePersen(_upah.text)!;
     final operator = parsePersen(_operator.text)!;
+    final ok = await konfirmasiSimpanPengaturan(context);
+    if (!ok || !mounted) return;
     try {
       await widget.controller.simpanPersentase(upah, operator);
       if (!mounted) return;
       FocusScope.of(context).unfocus();
+      _hitungPreview();
       _snack('Pengaturan persentase disimpan');
     } on ApiJawaban catch (e) {
       if (mounted) _snackGalat(e.pesan);
@@ -96,11 +132,11 @@ class _PengaturanPageState extends State<PengaturanPage> {
   }
 
   InputDecoration _dekor(String label, String hint) => InputDecoration(
-        labelText: label,
-        helperText: hint,
-        suffixText: '%',
-        fillColor: AppColors.background,
-      );
+    labelText: label,
+    helperText: hint,
+    suffixText: '%',
+    fillColor: AppColors.background,
+  );
 
   Widget _kartu({
     required IconData icon,
@@ -108,39 +144,45 @@ class _PengaturanPageState extends State<PengaturanPage> {
     required String keterangan,
     required Widget child,
     Widget? trailing,
-  }) =>
-      KartuApp(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  }) => KartuApp(
+    padding: const EdgeInsets.all(18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                IkonKotak(icon, ukuran: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(judul,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textDark)),
-                      Text(keterangan,
-                          style: const TextStyle(
-                              fontSize: 12.5, color: AppColors.textMuted)),
-                    ],
+            IkonKotak(icon, ukuran: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    judul,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textDark,
+                    ),
                   ),
-                ),
-                ?trailing,
-              ],
+                  Text(
+                    keterangan,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 18),
-            child,
+            ?trailing,
           ],
         ),
-      );
+        const SizedBox(height: 18),
+        child,
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +240,7 @@ class _PengaturanPageState extends State<PengaturanPage> {
             key: const Key('field-upah'),
             controller: _upah,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _hitungPreview(),
             decoration: _dekor('Upah huller', 'Dari beras bersih'),
             validator: (v) => validatorPersen(v, 'Upah huller'),
           ),
@@ -207,7 +249,7 @@ class _PengaturanPageState extends State<PengaturanPage> {
             key: const Key('field-operator'),
             controller: _operator,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _hitungPreview(),
             decoration: _dekor('Hak operator', 'Dari upah huller'),
             validator: (v) => validatorPersen(v, 'Hak operator'),
           ),
@@ -229,27 +271,33 @@ class _PengaturanPageState extends State<PengaturanPage> {
   Widget _preview() {
     final u = parsePersen(_upah.text);
     final o = parsePersen(_operator.text);
-    final valid = u != null && o != null && u >= 0 && u <= 100 && o >= 0 && o <= 100;
-    final h = valid ? BagiHasil.hitung(_contohKg, u, o) : null;
+    final valid =
+        u != null && o != null && u >= 0 && u <= 100 && o >= 0 && o <= 100;
+    final h = valid
+        ? (_previewHasil ?? BagiHasil.hitung(_contohKg, u, o))
+        : null;
 
     Widget baris(String label, String nilai, {bool tebal = false}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(label,
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textMuted)),
-              ),
-              Text(nilai,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: tebal ? FontWeight.w800 : FontWeight.w600,
-                    color: tebal ? AppColors.mintText : AppColors.textDark,
-                  )),
-            ],
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
           ),
-        );
+          Text(
+            nilai,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: tebal ? FontWeight.w800 : FontWeight.w600,
+              color: tebal ? AppColors.mintText : AppColors.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -260,22 +308,30 @@ class _PengaturanPageState extends State<PengaturanPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Contoh dari ${formatKg(_contohKg)} beras bersih',
-              style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary)),
+          Text(
+            'Contoh dari ${formatKg(_contohKg)} beras bersih',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(height: 6),
           if (h == null)
-            const Text('Isi persentase dengan benar untuk melihat contoh',
-                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted))
+            const Text(
+              'Isi persentase dengan benar untuk melihat contoh',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+            )
           else ...[
             baris('Upah huller', formatKg(h.upahKg)),
             baris('  • Bagian operator', formatKg(h.operatorKg)),
             baris('  • Milik huller', formatKg(h.hullerKg)),
             const Divider(height: 14),
-            baris('Masuk saldo pelanggan', formatKg(h.saldoPelangganKg),
-                tebal: true),
+            baris(
+              'Masuk saldo pelanggan',
+              formatKg(h.saldoPelangganKg),
+              tebal: true,
+            ),
           ],
         ],
       ),
@@ -287,8 +343,10 @@ class _PengaturanPageState extends State<PengaturanPage> {
     if (kelas.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('Belum ada kelas beras. Tekan "Tambah" untuk membuat.',
-            style: TextStyle(color: AppColors.textMuted)),
+        child: Text(
+          'Belum ada kelas beras. Tekan "Tambah" untuk membuat.',
+          style: TextStyle(color: AppColors.textMuted),
+        ),
       );
     }
     // Daftar kelas dalam satu wadah bergaris, dipisah garis tipis
@@ -309,31 +367,38 @@ class _PengaturanPageState extends State<PengaturanPage> {
   }
 
   Widget _barisKelas(KelasBeras k) => Padding(
-        key: Key('kelas-${k.id}'),
-        padding: const EdgeInsets.only(left: 14),
-        child: Row(
-          children: [
-            const Icon(Icons.circle, size: 8, color: AppColors.primaryLight),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(k.nama,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: AppColors.textDark)),
+    key: Key('kelas-${k.id}'),
+    padding: const EdgeInsets.only(left: 14),
+    child: Row(
+      children: [
+        const Icon(Icons.circle, size: 8, color: AppColors.primaryLight),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            k.nama,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
             ),
-            IconButton(
-              tooltip: 'Ubah ${k.nama}',
-              onPressed: () => _formKelas(k),
-              icon: const Icon(Icons.edit_outlined, size: 20),
-            ),
-            IconButton(
-              tooltip: 'Hapus ${k.nama}',
-              onPressed: () => _hapusKelas(k),
-              icon: const Icon(Icons.delete_outline_rounded,
-                  size: 20, color: AppColors.danger),
-            ),
-          ],
+          ),
         ),
-      );
+        IconButton(
+          tooltip: 'Ubah ${k.nama}',
+          onPressed: () => _formKelas(k),
+          icon: const Icon(Icons.edit_outlined, size: 20),
+        ),
+        IconButton(
+          tooltip: 'Hapus ${k.nama}',
+          onPressed: () => _hapusKelas(k),
+          icon: const Icon(
+            Icons.delete_outline_rounded,
+            size: 20,
+            color: AppColors.danger,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _KelasDialog extends StatefulWidget {
@@ -360,9 +425,10 @@ class _KelasDialogState extends State<_KelasDialog> {
     final s = (v ?? '').trim();
     if (s.isEmpty) return 'Nama kelas wajib diisi';
     // Cek dobel di daftar yang sudah dimuat (backend juga menolak nama dobel)
-    final dobel = widget.controller.kelas.any((k) =>
-        k.id != widget.kelas?.id &&
-        k.nama.toLowerCase() == s.toLowerCase());
+    final dobel = widget.controller.kelas.any(
+      (k) =>
+          k.id != widget.kelas?.id && k.nama.toLowerCase() == s.toLowerCase(),
+    );
     if (dobel) return 'Kelas ini sudah ada';
     return null;
   }
@@ -376,7 +442,9 @@ class _KelasDialogState extends State<_KelasDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.kelas == null ? 'Kelas Beras Baru' : 'Ubah Kelas Beras'),
+      title: Text(
+        widget.kelas == null ? 'Kelas Beras Baru' : 'Ubah Kelas Beras',
+      ),
       content: SizedBox(
         width: 340,
         child: Form(

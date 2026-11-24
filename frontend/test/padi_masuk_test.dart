@@ -48,6 +48,7 @@ void main() {
     test('dariApi membaca nama relasi datar', () {
       final p = PadiMasuk.dariApi({
         'id': 7,
+        'nomor_transaksi': 'PM-20261027-0007',
         'tanggal': '2026-10-27',
         'pelanggan_id': 3,
         'nama_pelanggan': 'Pak Warsito',
@@ -57,6 +58,7 @@ void main() {
         'catatan': null,
       });
       expect(p.id, 7);
+      expect(p.nomorTransaksi, 'PM-20261027-0007');
       expect(p.pelangganNama, 'Pak Warsito');
       expect(p.kelasNama, 'Premium');
       expect(p.beratKg, 250.5);
@@ -77,6 +79,7 @@ void main() {
       expect(p.pelangganNama, 'Bu Sri');
       expect(p.kelasNama, 'Medium');
       expect(p.beratKg, 100.0);
+      expect(p.nomorTransaksi, 'PM-20260105-0001');
     });
 
     test('keApi memakai snake_case dan catatan kosong jadi null', () {

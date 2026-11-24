@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/api_client.dart';
-import '../../../core/konfirmasi_hapus.dart';
 import '../../../core/ui.dart';
 import '../models/pelanggan.dart';
 import '../pelanggan_controller.dart';
+import '../riwayat_transaksi_controller.dart';
+import 'detail_pelanggan_page.dart';
 import 'form_pelanggan_page.dart';
 import '../widgets/pelanggan_card.dart';
 import '../widgets/summary_header.dart';
@@ -19,11 +19,11 @@ enum _Filter {
   const _Filter(this.label);
 
   bool cocok(Pelanggan p) => switch (this) {
-        _Filter.semua => true,
-        _Filter.petani => p.tipe == TipePelanggan.petani,
-        _Filter.pengepul => p.tipe == TipePelanggan.pengepul,
-        _Filter.milikHuller => p.tipe == TipePelanggan.milikHuller,
-      };
+    _Filter.semua => true,
+    _Filter.petani => p.tipe == TipePelanggan.petani,
+    _Filter.pengepul => p.tipe == TipePelanggan.pengepul,
+    _Filter.milikHuller => p.tipe == TipePelanggan.milikHuller,
+  };
 }
 
 class DaftarPelangganPage extends StatefulWidget {
@@ -56,28 +56,27 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
     final pesan = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => FormPelangganPage(
-          controller: widget.controller,
-          pelanggan: p,
-        ),
+        builder: (_) =>
+            FormPelangganPage(controller: widget.controller, pelanggan: p),
       ),
     );
     if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
-  Future<void> _hapus(Pelanggan p) async {
-    final ok = await konfirmasiHapus(
+  Future<void> _bukaDetail(Pelanggan p) async {
+    final id = p.id;
+    if (id == null) return;
+    final pesan = await Navigator.push<String>(
       context,
-      judul: 'Hapus pelanggan?',
-      pesan: '${p.nama} akan dihapus dari daftar pelanggan.',
+      MaterialPageRoute(
+        builder: (_) => DetailPelangganPage(
+          pelanggan: p,
+          pelangganController: widget.controller,
+          riwayatController: RiwayatTransaksiController(id),
+        ),
+      ),
     );
-    if (!ok || !mounted) return;
-    try {
-      await widget.controller.hapus(p.id!);
-      if (mounted) tampilkanPesan(context, '${p.nama} dihapus');
-    } on ApiJawaban catch (e) {
-      if (mounted) tampilkanPesan(context, e.pesan, galat: true);
-    }
+    if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
   void _bersihkanCari() {
@@ -88,9 +87,8 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
   List<Pelanggan> get _hasil {
     final q = _query.trim().toLowerCase();
     return widget.controller.items.where((p) {
-      final cocokCari = q.isEmpty ||
-          p.nama.toLowerCase().contains(q) ||
-          p.kontak.contains(q);
+      final cocokCari =
+          q.isEmpty || p.nama.toLowerCase().contains(q) || p.kontak.contains(q);
       return _filter.cocok(p) && cocokCari;
     }).toList();
   }
@@ -162,7 +160,8 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
                         for (final f in _Filter.values) ...[
                           ChoiceChip(
                             label: Text(
-                                '${f.label} (${c.items.where(f.cocok).length})'),
+                              '${f.label} (${c.items.where(f.cocok).length})',
+                            ),
                             selected: _filter == f,
                             onSelected: (_) => setState(() => _filter = f),
                           ),
@@ -206,9 +205,7 @@ class _DaftarPelangganPageState extends State<DaftarPelangganPage> {
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => PelangganCard(
                     pelanggan: hasil[i],
-                    onTap: () => _bukaForm(hasil[i]),
-                    onUbah: () => _bukaForm(hasil[i]),
-                    onHapus: () => _hapus(hasil[i]),
+                    onTap: () => _bukaDetail(hasil[i]),
                   ),
                 ),
               ),

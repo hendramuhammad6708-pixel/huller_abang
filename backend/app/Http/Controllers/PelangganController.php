@@ -3,12 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PelangganRequest;
+use App\Http\Requests\RiwayatTransaksiPelangganRequest;
+use App\Models\PadiMasuk;
 use App\Models\Pelanggan;
+use App\Services\PadiMasukService;
 use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PelangganController extends Controller
 {
+    public function __construct(private readonly PadiMasukService $service) {}
+
     // GET /api/pelanggan?search=&tipe=&page=&limit=
     public function index(Request $request)
     {
@@ -47,6 +53,76 @@ class PelangganController extends Controller
             'Detail pelanggan',
             $pelanggan->only(['id', 'nama', 'kontak', 'tipe_pelanggan', 'created_at', 'updated_at'])
         );
+    }
+
+    public function riwayatTransaksi(RiwayatTransaksiPelangganRequest $request, string $id): JsonResponse
+    {
+        $pelanggan = Pelanggan::findOrFail($id);
+        $data = $request->validated();
+        $limit = (int) ($data['limit'] ?? 10);
+
+        $terakhir = PadiMasuk::query()
+            ->where('pelanggan_id', $pelanggan->id)
+            ->where('status_transaksi', '!=', PadiMasuk::STATUS_VOID)
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->first();
+
+        $query = PadiMasuk::query()
+            ->where('pelanggan_id', $pelanggan->id)
+            ->with(['pelanggan', 'kelasPadi', 'penjemuran']);
+
+        if (! empty($data['search'])) {
+            $search = $data['search'];
+
+            $query->where(function ($q) use ($search) {
+                $q->where('catatan', 'like', '%'.$search.'%')
+                    ->orWhereHas('kelasPadi', fn ($k) => $k->where('nama_kelas', 'like', '%'.$search.'%'));
+            });
+        }
+
+        if (! empty($data['status'])) {
+            $query->where('status_transaksi', $data['status']);
+        }
+
+        if (! empty($data['tanggal_dari'])) {
+            $query->whereDate('tanggal', '>=', $data['tanggal_dari']);
+        }
+
+        if (! empty($data['tanggal_sampai'])) {
+            $query->whereDate('tanggal', '<=', $data['tanggal_sampai']);
+        }
+
+        $hasil = $query->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->paginate($limit);
+
+        $terakhirFormat = $terakhir ? $this->service->format($terakhir) : null;
+        $statusTerakhir = $terakhirFormat['status'] ?? null;
+        $tanggalTerakhir = $terakhirFormat['tanggal_selesai_giling']
+            ?? $terakhirFormat['penjemuran']['tanggal_mulai']
+            ?? $terakhirFormat['tanggal']
+            ?? null;
+
+        return ApiResponse::sukses('Riwayat transaksi pelanggan', [
+            'pelanggan' => array_merge($pelanggan->only(['id', 'nama', 'kontak', 'tipe_pelanggan']), [
+                'status_terakhir' => $statusTerakhir,
+                'status_terakhir_label' => $statusTerakhir
+                    ? (PadiMasuk::LABEL_STATUS[$statusTerakhir] ?? $statusTerakhir)
+                    : null,
+                'tanggal_terakhir' => $tanggalTerakhir,
+            ]),
+            'terakhir' => $terakhirFormat,
+            'items' => collect($hasil->items())
+                ->map(fn (PadiMasuk $padi) => $this->service->format($padi))
+                ->values()
+                ->all(),
+            'meta' => [
+                'page' => $hasil->currentPage(),
+                'limit' => $hasil->perPage(),
+                'total' => $hasil->total(),
+            ],
+        ]);
     }
 
     // POST /api/pelanggan

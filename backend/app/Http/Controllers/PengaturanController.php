@@ -25,7 +25,19 @@ class PengaturanController extends Controller
     {
         $data = $request->validated();
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $request) {
+            $lama = $this->ambil();
+            $baru = array_merge($lama, $data);
+
+            DB::table('log_pengaturan')->insert([
+                'user_id' => $request->user()->id,
+                'upah_lama' => $lama['persen_upah'],
+                'upah_baru' => $baru['persen_upah'],
+                'hak_operator_lama' => $lama['persen_hak_operator'],
+                'hak_operator_baru' => $baru['persen_hak_operator'],
+                'created_at' => now(),
+            ]);
+
             foreach ($data as $kunci => $nilai) {
                 Pengaturan::updateOrCreate(
                     ['kunci' => $kunci],

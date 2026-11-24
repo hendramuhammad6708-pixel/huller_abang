@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/app_theme.dart';
-import '../../../core/konfirmasi_hapus.dart';
+import '../../../core/konfirmasi_void.dart';
+import '../../../core/share_pdf.dart';
 import '../../../core/ui.dart';
 import '../../pelanggan/pelanggan_controller.dart';
 import '../../pelanggan/widgets/format.dart';
 import '../../pengaturan/pengaturan_controller.dart';
 import '../models/padi_masuk.dart';
 import '../padi_masuk_controller.dart';
+import '../struk_padi_masuk.dart';
 import '../widgets/filter_padi_bar.dart';
 import '../widgets/padi_masuk_card.dart';
 import 'form_padi_masuk_page.dart';
@@ -60,19 +64,69 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
     if (pesan != null && mounted) tampilkanPesan(context, pesan);
   }
 
-  Future<void> _hapus(PadiMasuk p) async {
-    final ok = await konfirmasiHapus(
+  Future<void> _batalkan(PadiMasuk p) async {
+    final id = p.id;
+    if (id == null) return;
+    final alasan = await konfirmasiVoid(
       context,
-      judul: 'Hapus catatan?',
-      pesan: 'Padi masuk ${p.pelangganNama} '
-          '(${formatKg(p.beratKg)}, ${formatTanggal(p.tanggal)}) akan dihapus.',
+      judul: 'Batalkan transaksi?',
+      pesan:
+          'Padi masuk ${p.pelangganNama} '
+          '(${formatKg(p.beratKg)}, ${formatTanggal(p.tanggal)}) akan ditandai Void. '
+          'Riwayat dan audit tetap tersimpan.',
     );
-    if (!ok || !mounted) return;
+    if (alasan == null || !mounted) return;
     try {
-      await widget.controller.hapus(p.id!);
-      if (mounted) tampilkanPesan(context, 'Catatan dihapus');
+      await widget.controller.batalkan(id, alasan);
+      if (mounted) tampilkanPesan(context, 'Transaksi dibatalkan (Void)');
     } on ApiJawaban catch (e) {
       if (mounted) tampilkanPesan(context, e.pesan, galat: true);
+    }
+  }
+
+  Future<void> _cetak(PadiMasuk p) async {
+    if (p.status == 'void') return;
+    try {
+      await cetakStrukPadiMasuk(p);
+    } catch (_) {
+      if (mounted) {
+        tampilkanPesan(context, 'Gagal membuka cetak struk', galat: true);
+      }
+    }
+  }
+
+  Future<void> _bagikan(PadiMasuk p) async {
+    if (p.status == 'void') return;
+    try {
+      final bytes = await hasilkanPdfStrukPadiMasuk(p);
+      final nama = '${p.nomorTransaksi}.pdf';
+      final teks =
+          'Struk padi masuk ${p.nomorTransaksi} - ${p.pelangganNama}, '
+          '${formatKg(p.beratKg)} (${formatTanggal(p.tanggal)}) - Huller Abang';
+
+      final dibagikan = await bagikanPdfLewatWebShare(
+        bytes: bytes,
+        fileName: nama,
+        text: teks,
+      );
+      if (dibagikan) return;
+
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: nama,
+        subject: 'Struk Padi Masuk Huller Abang',
+        body: teks,
+      );
+      if (mounted && kIsWeb) {
+        tampilkanPesan(
+          context,
+          'Silakan download PDF dan kirim manual via WA Web',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        tampilkanPesan(context, 'Gagal membagikan struk', galat: true);
+      }
     }
   }
 
@@ -83,7 +137,7 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
       final t = items[i].tanggal;
       if (i == 0 || !_hariSama(items[i - 1].tanggal, t)) {
         final total = items
-            .where((e) => _hariSama(e.tanggal, t))
+            .where((e) => _hariSama(e.tanggal, t) && e.status != 'void')
             .fold<double>(0, (j, e) => j + e.beratKg);
         hasil.add(_Kelompok(t, total));
       }
@@ -105,8 +159,11 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [widget.controller, widget.pelanggan, widget.pengaturan]),
+      listenable: Listenable.merge([
+        widget.controller,
+        widget.pelanggan,
+        widget.pengaturan,
+      ]),
       builder: (context, _) => LayoutBuilder(
         builder: (context, batas) =>
             _buildPage(context, jarakSamping(batas.maxWidth)),
@@ -138,7 +195,11 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
                     BannerGalat(c.galat!, onUlangi: () => c.muat(paksa: true)),
                     const SizedBox(height: 16),
                   ],
-                  _ringkasan(items.length, c.totalKg, c.adaFilter),
+                  _ringkasan(
+                    items.where((e) => e.status != 'void').length,
+                    c.totalKg,
+                    c.adaFilter,
+                  ),
                   const SizedBox(height: 16),
                   FilterPadiBar(
                     controller: c,
@@ -150,9 +211,17 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
               ),
             ),
             if (c.memuat && items.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(samping, 8, samping, 96),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(const [
+                    SkeletonKartu(baris: 3),
+                    SizedBox(height: 10),
+                    SkeletonKartu(baris: 3),
+                    SizedBox(height: 10),
+                    SkeletonKartu(baris: 3),
+                  ]),
+                ),
               )
             else if (items.isEmpty)
               SliverFillRemaining(
@@ -166,7 +235,8 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
                     : KeadaanKosong(
                         icon: Icons.grain_rounded,
                         judul: 'Belum ada padi masuk',
-                        pesan: 'Catat setiap padi yang datang agar riwayat '
+                        pesan:
+                            'Catat setiap padi yang datang agar riwayat '
                             'dan bagi hasil tercatat rapi.',
                         labelAksi: 'Catat padi masuk',
                         onAksi: _bukaForm,
@@ -180,10 +250,14 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
                   itemBuilder: (_, i) => switch (baris[i]) {
                     final _Kelompok k => _judulTanggal(k),
                     final PadiMasuk p => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: PadiMasukCard(
-                            padi: p, onHapus: () => _hapus(p)),
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: PadiMasukCard(
+                        padi: p,
+                        onCetak: () => _cetak(p),
+                        onBagikan: () => _bagikan(p),
+                        onVoid: () => _batalkan(p),
                       ),
+                    ),
                     _ => const SizedBox.shrink(),
                   },
                 ),
@@ -195,78 +269,91 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
   }
 
   Widget _judulTanggal(_Kelompok k) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(_labelTanggal(k.tanggal),
-                  style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark)),
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            _labelTanggal(k.tanggal),
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textDark,
             ),
-            Text(formatKg(k.totalKg),
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted)),
-          ],
+          ),
         ),
-      );
+        Text(
+          formatKg(k.totalKg),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _ringkasan(int jumlah, double totalKg, bool adaFilter) => PanelHero(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    adaFilter ? 'Total padi masuk (terfilter)' : 'Total padi masuk',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.white.withValues(alpha: 0.8)),
+    padding: const EdgeInsets.all(18),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                adaFilter ? 'Total padi masuk (terfilter)' : 'Total padi masuk',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatKg(totalKg),
+                  key: const Key('total-kg'),
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      formatKg(totalKg),
-                      key: const Key('total-kg'),
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.aksen,
-                borderRadius: BorderRadius.circular(AppRadius.sedang),
-              ),
-              child: Column(
-                children: [
-                  Text('$jumlah',
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primaryDark)),
-                  const Text('transaksi',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark)),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      );
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.aksen,
+            borderRadius: BorderRadius.circular(AppRadius.sedang),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$jumlah',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+              const Text(
+                'transaksi',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }

@@ -9,6 +9,8 @@ import 'package:huller_abang/features/pelanggan/models/pelanggan.dart';
 import 'package:huller_abang/features/pelanggan/pages/daftar_pelanggan_page.dart';
 import 'package:huller_abang/features/pelanggan/pages/form_pelanggan_page.dart';
 import 'package:huller_abang/features/pelanggan/pelanggan_controller.dart';
+import 'package:huller_abang/features/pelanggan/riwayat_transaksi_controller.dart';
+import 'package:huller_abang/features/pelanggan/pages/detail_pelanggan_page.dart';
 import 'package:huller_abang/features/pelanggan/widgets/pelanggan_card.dart';
 import 'package:huller_abang/features/pelanggan/widgets/tambah_pelanggan_dialog.dart';
 import 'package:huller_abang/features/pengaturan/pengaturan_controller.dart';
@@ -23,8 +25,11 @@ import 'package:huller_abang/features/penggilingan/widgets/padi_masuk_card.dart'
 /// Overflow tata letak akan membuat test gagal. Panggilan API di lingkungan
 /// test selalu gagal, jadi tampilan galat ikut teruji.
 void main() {
-  Future<void> render(WidgetTester tester, Widget halaman,
-      {Size ukuran = const Size(360, 740)}) async {
+  Future<void> render(
+    WidgetTester tester,
+    Widget halaman, {
+    Size ukuran = const Size(360, 740),
+  }) async {
     tester.view.physicalSize = ukuran;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -33,8 +38,8 @@ void main() {
   }
 
   Widget dalamDaftar(Widget anak) => Scaffold(
-        body: ListView(padding: const EdgeInsets.all(20), children: [anak]),
-      );
+    body: ListView(padding: const EdgeInsets.all(20), children: [anak]),
+  );
 
   group('tampilan HP kecil', () {
     testWidgets('login', (tester) async {
@@ -43,13 +48,40 @@ void main() {
     });
 
     testWidgets('dashboard', (tester) async {
-      await render(tester, DashboardPage(onCatatPadi: () {}, onBukaTab: (_) {}));
+      await render(
+        tester,
+        DashboardPage(onCatatPadi: () {}, onBukaTab: (_) {}),
+      );
       expect(find.byKey(const Key('btn-catat-padi')), findsOneWidget);
     });
 
     testWidgets('daftar pelanggan', (tester) async {
-      await render(tester, DaftarPelangganPage(controller: PelangganController()));
+      await render(
+        tester,
+        DaftarPelangganPage(controller: PelangganController()),
+      );
       expect(find.byKey(const Key('fab-tambah')), findsOneWidget);
+    });
+
+    testWidgets('detail pelanggan menampilkan riwayat transaksi', (
+      tester,
+    ) async {
+      await render(
+        tester,
+        DetailPelangganPage(
+          pelanggan: const Pelanggan(
+            id: 1,
+            nama: 'Pak Budi',
+            tipe: TipePelanggan.petani,
+          ),
+          pelangganController: PelangganController(),
+          riwayatController: RiwayatTransaksiController(1),
+        ),
+      );
+      expect(find.text('Riwayat transaksi'), findsOneWidget);
+      expect(find.byKey(const Key('riwayat-total-transaksi')), findsOneWidget);
+      expect(find.byKey(const Key('btn-ubah-pelanggan')), findsOneWidget);
+      expect(find.byKey(const Key('btn-hapus-pelanggan')), findsOneWidget);
     });
 
     testWidgets('form pelanggan (ubah)', (tester) async {
@@ -58,14 +90,20 @@ void main() {
         FormPelangganPage(
           controller: PelangganController(),
           pelanggan: const Pelanggan(
-              id: 1, nama: 'Pak Warsito', tipe: TipePelanggan.pengepul),
+            id: 1,
+            nama: 'Pak Warsito',
+            tipe: TipePelanggan.pengepul,
+          ),
         ),
       );
       expect(find.byKey(const Key('btn-simpan')), findsOneWidget);
       // Form harus tampil di layar, tidak tertutup bilah tombol bawah
       expect(find.byKey(const Key('field-nama')), findsOneWidget);
       expect(tester.getSize(find.byType(BilahAksiBawah)).height, lessThan(200));
-      final tipe = find.byKey(const Key('tipe-milik_huller'), skipOffstage: false);
+      final tipe = find.byKey(
+        const Key('tipe-milik_huller'),
+        skipOffstage: false,
+      );
       await tester.ensureVisible(tipe);
       await tester.tap(tipe);
       await tester.pump();
@@ -98,7 +136,10 @@ void main() {
       // Validasi tampil tanpa merusak tata letak
       await tester.tap(find.byKey(const Key('btn-simpan')));
       await tester.pump();
-      expect(find.text('Berat wajib diisi', skipOffstage: false), findsOneWidget);
+      expect(
+        find.text('Berat wajib diisi', skipOffstage: false),
+        findsOneWidget,
+      );
     });
 
     testWidgets('dialog tambah pelanggan baru', (tester) async {
@@ -106,7 +147,10 @@ void main() {
         tester,
         TambahPelangganDialog(controller: PelangganController()),
       );
-      expect(find.byKey(const Key('field-nama-pelanggan-baru')), findsOneWidget);
+      expect(
+        find.byKey(const Key('field-nama-pelanggan-baru')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('tipe-baru-milik_huller')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('btn-simpan-pelanggan-baru')));
@@ -117,6 +161,28 @@ void main() {
     testWidgets('pengaturan', (tester) async {
       await render(tester, PengaturanPage(controller: PengaturanController()));
       expect(find.byKey(const Key('btn-simpan-persen')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('btn-simpan-persen')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('dialog-konfirmasi-pengaturan')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Mengubah persentase hanya akan berlaku untuk transaksi baru. '
+          'Transaksi yang sudah ada tidak akan berubah.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('btn-ya-simpan')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('btn-batal-pengaturan')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('dialog-konfirmasi-pengaturan')),
+        findsNothing,
+      );
     });
 
     testWidgets('operator', (tester) async {
@@ -135,38 +201,76 @@ void main() {
         ukuran: const Size(1280, 800),
       );
       // Konten dibatasi agar tidak melebar sepenuh layar
-      final lebar = tester.getSize(find.byKey(const Key('filter-pelanggan'))).width;
+      final lebar = tester
+          .getSize(find.byKey(const Key('filter-pelanggan')))
+          .width;
       expect(lebar, lessThan(400));
     });
 
     testWidgets('kartu dengan teks panjang', (tester) async {
       await render(
         tester,
-        dalamDaftar(Column(children: [
-          PelangganCard(
-            pelanggan: const Pelanggan(
-              id: 1,
-              nama: 'H. Muhammad Solihin Wijayakusuma Abdurrahman',
-              kontak: '+6281234567890',
-              tipe: TipePelanggan.milikHuller,
-            ),
+        dalamDaftar(
+          Column(
+            children: [
+              PelangganCard(
+                pelanggan: const Pelanggan(
+                  id: 1,
+                  nama: 'H. Muhammad Solihin Wijayakusuma Abdurrahman',
+                  kontak: '+6281234567890',
+                  tipe: TipePelanggan.milikHuller,
+                ),
+              ),
+              PadiMasukCard(
+                padi: PadiMasuk(
+                  id: 1,
+                  tanggal: DateTime(2026, 10, 27),
+                  pelangganId: 1,
+                  pelangganNama: 'H. Muhammad Solihin Wijayakusuma Abdurrahman',
+                  kelasId: 1,
+                  kelasNama: 'Pandan Wangi Super Premium',
+                  beratKg: 18650.75,
+                  catatan: 'Padi agak basah, dijemur ulang dua hari',
+                ),
+                onCetak: () {},
+                onBagikan: () {},
+                onVoid: () {},
+              ),
+            ],
           ),
-          PadiMasukCard(
-            padi: PadiMasuk(
-              id: 1,
-              tanggal: DateTime(2026, 10, 27),
-              pelangganId: 1,
-              pelangganNama: 'H. Muhammad Solihin Wijayakusuma Abdurrahman',
-              kelasId: 1,
-              kelasNama: 'Pandan Wangi Super Premium',
-              beratKg: 18650.75,
-              catatan: 'Padi agak basah, dijemur ulang dua hari',
-            ),
-            onHapus: () {},
-          ),
-        ])),
+        ),
       );
       expect(find.text('18.650,75 kg'), findsOneWidget);
+      expect(find.byKey(const Key('btn-cetak-1')), findsOneWidget);
+    });
+
+    testWidgets('kartu void tidak punya aksi cetak atau bagikan', (tester) async {
+      await render(
+        tester,
+        dalamDaftar(
+          PadiMasukCard(
+            padi: PadiMasuk(
+              id: 9,
+              nomorTransaksi: 'PM-20261124-0009',
+              tanggal: DateTime(2026, 11, 24),
+              pelangganId: 1,
+              pelangganNama: 'Pak Budi',
+              kelasId: 1,
+              kelasNama: 'Kelas 1',
+              beratKg: 100,
+              status: 'void',
+              voidReason: 'Dibatalkan',
+            ),
+            onCetak: () {},
+            onBagikan: () {},
+            onVoid: () {},
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('btn-cetak-9')), findsNothing);
+      expect(find.byKey(const Key('btn-bagikan-9')), findsNothing);
+      expect(find.byKey(const Key('btn-void-9')), findsNothing);
+      expect(find.text('VOID'), findsOneWidget);
     });
   });
 }

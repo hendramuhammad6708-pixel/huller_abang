@@ -28,7 +28,9 @@ class PadiMasukController extends ChangeNotifier {
   bool get adaFilter =>
       _rentang != null || _pelangganId != null || _kelasId != null;
 
-  double get totalKg => _items.fold(0, (jumlah, e) => jumlah + e.beratKg);
+  double get totalKg => _items
+      .where((e) => e.status != 'void')
+      .fold(0, (jumlah, e) => jumlah + e.beratKg);
 
   /// Path dengan query filter yang sedang aktif.
   String get path {
@@ -109,11 +111,12 @@ class PadiMasukController extends ChangeNotifier {
     await muat(paksa: true);
   }
 
-  /// Hapus; lempar [ApiJawaban] bila 404.
-  Future<void> hapus(int id) async {
-    final jwb = await _sesi.api.delete('/padi-masuk/$id');
+  /// Batalkan transaksi (void); lempar [ApiJawaban] bila validasi/guard gagal.
+  Future<void> batalkan(int id, String alasan) async {
+    final jwb = await _sesi.api.post('/padi-masuk/$id/void', {
+      'alasan': alasan,
+    });
     if (!jwb.sukses) throw jwb;
-    _items.removeWhere((e) => e.id == id);
-    notifyListeners();
+    await muat(paksa: true);
   }
 }

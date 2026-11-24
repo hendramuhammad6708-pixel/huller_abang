@@ -3,8 +3,8 @@
 Dasar alamat: `http://localhost:8000/api`
 Kirim header `Accept: application/json` (dan `Content-Type: application/json` untuk POST/PUT).
 
-**Hak akses:** Owner. Semua endpoint modul ini butuh header `Authorization: Bearer <token>` (login dulu lewat `POST /api/login`).
-Tanpa token → `401`; token role operator → `403`.
+**Hak akses:** Owner, kecuali `GET /api/pelanggan` yang juga boleh diakses operator (baca saja, dipakai sebagai daftar pelanggan pada form padi masuk). Semua endpoint modul ini butuh header `Authorization: Bearer <token>` (login dulu lewat `POST /api/login`).
+Tanpa token → `401`; token role operator → `403` untuk endpoint selain `GET /api/pelanggan`.
 
 ## Format respons
 
@@ -54,6 +54,38 @@ Pelanggan yang sudah dihapus tidak ikut tampil.
 
 Respons `200`: `data` berisi `id, nama, kontak, tipe_pelanggan, created_at, updated_at`.
 Respons `404` jika id tidak ada atau sudah dihapus.
+
+## GET /api/pelanggan/{id}/riwayat-transaksi — riwayat transaksi pelanggan
+
+Query (semua opsional): `search` (catatan atau nama kelas padi), `status` (`masuk`, `dijemur`, `siap_giling`, `selesai_giling`, `void`), `tanggal_dari`, `tanggal_sampai` (format `YYYY-MM-DD`, sampai tidak boleh sebelum dari), `page` (default 1), `limit` (default 10, maksimal 100).
+
+Respons `200` (diurutkan dari tanggal terbaru, lalu id terbesar):
+```json
+{
+  "success": true,
+  "message": "Riwayat transaksi pelanggan",
+  "data": {
+    "pelanggan": { "id": 1, "nama": "Pak Budi", "kontak": "081234567890",
+      "tipe_pelanggan": "petani", "status_terakhir": "dijemur",
+      "status_terakhir_label": "Dijemur", "tanggal_terakhir": "2026-10-26" },
+    "terakhir": { "id": 12, "status": "dijemur", "status_label": "Dijemur", "...": "..." },
+    "items": [
+      { "id": 12, "nomor_transaksi": "PM-20261026-0012", "tanggal": "2026-10-26",
+        "pelanggan": { "id": 1, "nama": "Pak Budi", "terhapus": false },
+        "kelas_padi": { "id": 2, "nama_kelas": "Premium" },
+        "berat_basah_kg": 250.5, "berat_kering_kg": null, "persen_susut": null,
+        "catatan": null, "status": "masuk", "status_label": "Masuk",
+        "penjemuran": null }
+    ],
+    "meta": { "page": 1, "limit": 10, "total": 1 }
+  }
+}
+```
+Format tiap `items` dan `terakhir` sama dengan `GET /api/padi-masuk` (lihat `padi-masuk.md`); `terakhir` bernilai `null` jika pelanggan belum punya transaksi.
+
+`status_terakhir`, `status_terakhir_label`, dan `tanggal_terakhir` diambil dari transaksi aktif terbaru (bukan `void`), diurutkan dari `tanggal` lalu `id` terbesar, dan tidak dipengaruhi filter `status`/tanggal. `tanggal_terakhir` memakai `tanggal_selesai_giling`, lalu `penjemuran.tanggal_mulai`, lalu `tanggal`. Flutter memakai status ini untuk memilih teks ringkasan: `dijemur` → "Sedang Dijemur X hari", `siap_giling` → "Siap Giling X hari", `selesai_giling` → "Giling X hari lalu"; `void` tidak dipakai sebagai status terakhir.
+
+Respons `404` jika pelanggan tidak ada/sudah dihapus; `422` jika filter tidak valid (misal `limit=101`, tanggal salah format, atau `tanggal_sampai` sebelum `tanggal_dari`).
 
 ## POST /api/pelanggan — tambah
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\KelasPadi;
+use App\Models\PadiMasuk;
 use App\Models\Pelanggan;
 use App\Models\Pengaturan;
 use App\Models\User;
@@ -13,6 +14,9 @@ class DashboardController extends Controller
 {
     public function summary(): JsonResponse
     {
+        $hariIni = now()->toDateString();
+        $aktif = fn () => PadiMasuk::where('status_transaksi', '!=', PadiMasuk::STATUS_VOID);
+
         return ApiResponse::sukses('Ringkasan dashboard', [
             'total_operator' => User::where('role', 'operator')->count(),
             'operator_aktif' => User::where('role', 'operator')->where('aktif', true)->count(),
@@ -20,7 +24,19 @@ class DashboardController extends Controller
             'pelanggan_per_tipe' => $this->hitungPelangganPerTipe(),
             'total_kelas_padi' => KelasPadi::count(),
             'total_pengaturan' => Pengaturan::count(),
-            'transaksi' => 0,
+            'padi_masuk' => [
+                'jumlah_transaksi' => $aktif()->count(),
+                'total_berat_kg' => (float) $aktif()->sum('berat_basah_kg'),
+                'hari_ini' => [
+                    'jumlah_transaksi' => $aktif()->whereDate('tanggal', $hariIni)->count(),
+                    'total_berat_kg' => (float) $aktif()->whereDate('tanggal', $hariIni)->sum('berat_basah_kg'),
+                ],
+            ],
+            'penjemuran' => [
+                'sedang_dijemur' => $aktif()->where('status_transaksi', PadiMasuk::STATUS_DIJEMUR)->count(),
+                'siap_giling' => $aktif()->where('status_transaksi', PadiMasuk::STATUS_SIAP_GILING)->count(),
+            ],
+            'transaksi' => $aktif()->count(),
             'stok' => 0,
         ]);
     }

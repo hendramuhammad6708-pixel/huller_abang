@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/api_client.dart';
 import '../../core/sesi.dart';
 
 /// Kelas/jenis beras dari master backend (GET/POST/PUT/DELETE /api/kelas-padi).
@@ -31,16 +32,26 @@ class BagiHasil {
     double persenUpah,
     double persenOperator,
   ) {
-    final upah = berasBersihKg * persenUpah / 100;
-    final op = upah * persenOperator / 100;
+    final beras = _bulat2(berasBersihKg);
+    final upah = _bulat2(beras * persenUpah / 100);
+    final op = _bulat2(upah * persenOperator / 100);
     return BagiHasil(
       upahKg: upah,
       operatorKg: op,
-      hullerKg: upah - op,
-      saldoPelangganKg: berasBersihKg - upah,
+      hullerKg: _bulat2(upah - op),
+      saldoPelangganKg: _bulat2(beras - upah),
     );
   }
+
+  factory BagiHasil.dariApi(Map<String, dynamic> j) => BagiHasil(
+    upahKg: (j['upah_kg'] as num).toDouble(),
+    operatorKg: (j['operator_kg'] as num).toDouble(),
+    hullerKg: (j['huller_kg'] as num).toDouble(),
+    saldoPelangganKg: (j['saldo_pelanggan_kg'] as num).toDouble(),
+  );
 }
+
+double _bulat2(num nilai) => (nilai * 100).round() / 100;
 
 /// Pengaturan persentase + master kelas beras dari API backend.
 class PengaturanController extends ChangeNotifier {
@@ -70,8 +81,7 @@ class PengaturanController extends ChangeNotifier {
     if (jwbPengaturan.sukses && jwbPengaturan.data is Map) {
       final data = jwbPengaturan.data as Map<String, dynamic>;
       _persenUpah = (data['persen_upah'] as num?)?.toDouble() ?? 5;
-      _persenOperator =
-          (data['persen_hak_operator'] as num?)?.toDouble() ?? 5;
+      _persenOperator = (data['persen_hak_operator'] as num?)?.toDouble() ?? 5;
     } else {
       _galat = jwbPengaturan.pesan;
     }
@@ -79,13 +89,10 @@ class PengaturanController extends ChangeNotifier {
     if (jwbKelas.sukses && jwbKelas.data is Map) {
       final items =
           (jwbKelas.data as Map<String, dynamic>)['items'] as List<dynamic>? ??
-              [];
+          [];
       _kelas = items
           .whereType<Map<String, dynamic>>()
-          .map((e) => KelasBeras(
-                e['id'] as int,
-                e['nama_kelas'] as String,
-              ))
+          .map((e) => KelasBeras(e['id'] as int, e['nama_kelas'] as String))
           .toList();
     } else {
       _galat ??= jwbKelas.pesan;
@@ -93,6 +100,27 @@ class PengaturanController extends ChangeNotifier {
 
     _memuat = false;
     notifyListeners();
+  }
+
+  /// Hitung bagi hasil di backend dengan pembulatan 2 desimal yang sama.
+  Future<BagiHasil> hitungBagiHasil(
+    double berasBersihKg, {
+    double? persenUpah,
+    double? persenHakOperator,
+  }) async {
+    final jwb = await _sesi.api.post('/bagi-hasil', {
+      'berat_bersih_kg': berasBersihKg,
+      'persen_upah': persenUpah ?? _persenUpah,
+      'persen_hak_operator': persenHakOperator ?? _persenOperator,
+    });
+    if (!jwb.sukses) throw jwb;
+    final data = jwb.data;
+    if (data is Map<String, dynamic>) return BagiHasil.dariApi(data);
+    return BagiHasil.hitung(
+      berasBersihKg,
+      persenUpah ?? _persenUpah,
+      persenHakOperator ?? _persenOperator,
+    );
   }
 
   /// Simpan persentase ke backend; lempar [ApiJawaban] bila gagal/422.

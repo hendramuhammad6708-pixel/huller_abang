@@ -1,3 +1,5 @@
+const int batasDurasiTerlaluLama = 3;
+
 /// Status otomatis: Masuk -> Dijemur -> Siap Giling
 enum StatusPenjemuran { masuk, dijemur, siapGiling }
 
@@ -16,6 +18,13 @@ String labelStatus(StatusPenjemuran s) => switch (s) {
   StatusPenjemuran.masuk => 'Masuk',
   StatusPenjemuran.dijemur => 'Dijemur',
   StatusPenjemuran.siapGiling => 'Siap Giling',
+};
+
+/// Nilai status sesuai konstanta API (`masuk`, `dijemur`, `siap_giling`).
+String nilaiApi(StatusPenjemuran s) => switch (s) {
+  StatusPenjemuran.masuk => 'masuk',
+  StatusPenjemuran.dijemur => 'dijemur',
+  StatusPenjemuran.siapGiling => 'siap_giling',
 };
 
 class Penjemuran {
@@ -91,11 +100,22 @@ class Penjemuran {
   /// Durasi jemur dalam hari (berjalan sampai hari ini bila belum selesai).
   int? get durasiHari {
     if (tanggalMulai == null) return null;
-    final akhir = tanggalSelesai ?? DateTime.now();
-    final a = DateTime(tanggalMulai!.year, tanggalMulai!.month, tanggalMulai!.day);
+    final akhir = status == StatusPenjemuran.dijemur || tanggalSelesai == null
+        ? DateTime.now()
+        : tanggalSelesai!;
+    final a = DateTime(
+      tanggalMulai!.year,
+      tanggalMulai!.month,
+      tanggalMulai!.day,
+    );
     final b = DateTime(akhir.year, akhir.month, akhir.day);
-    return b.difference(a).inDays;
+    final hari = b.difference(a).inDays;
+    return hari < 0 ? 0 : hari;
   }
+
+  bool get terlaluLama =>
+      status == StatusPenjemuran.dijemur &&
+      (durasiHari ?? 0) > batasDurasiTerlaluLama;
 
   /// Persen susut = (basah - kering) / basah x 100
   double? get persenSusut => hitungSusut(beratBasah, beratKering);

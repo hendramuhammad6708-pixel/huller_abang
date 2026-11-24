@@ -16,20 +16,22 @@ double jarakSamping(double lebarTersedia) {
 void tampilkanPesan(BuildContext context, String pesan, {bool galat = false}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          Icon(
-            galat ? Icons.error_outline_rounded : Icons.check_circle_rounded,
-            color: galat ? Colors.white : AppColors.primaryLight,
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(pesan)),
-        ],
+    ..showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              galat ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+              color: galat ? Colors.white : AppColors.primaryLight,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(pesan)),
+          ],
+        ),
+        backgroundColor: galat ? AppColors.danger : AppColors.textDark,
       ),
-      backgroundColor: galat ? AppColors.danger : AppColors.textDark,
-    ));
+    );
 }
 
 /// Panel sorotan bergradasi hijau dengan ornamen lingkaran lembut
@@ -38,16 +40,19 @@ class PanelHero extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
 
-  const PanelHero(
-      {super.key, required this.child, this.padding = const EdgeInsets.all(20)});
+  const PanelHero({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+  });
 
   @override
   Widget build(BuildContext context) {
     Widget bulatan(double ukuran, Color warna) => Container(
-          width: ukuran,
-          height: ukuran,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: warna),
-        );
+      width: ukuran,
+      height: ukuran,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: warna),
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -85,19 +90,23 @@ class LebarKonten extends StatelessWidget {
   final Widget child;
   final double maks;
 
-  const LebarKonten({super.key, required this.child, this.maks = lebarKontenMaks});
+  const LebarKonten({
+    super.key,
+    required this.child,
+    this.maks = lebarKontenMaks,
+  });
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.topCenter,
-        // Tinggi mengikuti anak; tanpa ini Align mengembang memenuhi ruang
-        // (mis. di bottomNavigationBar akan menutupi seluruh halaman).
-        heightFactor: 1,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maks),
-          child: child,
-        ),
-      );
+    alignment: Alignment.topCenter,
+    // Tinggi mengikuti anak; tanpa ini Align mengembang memenuhi ruang
+    // (mis. di bottomNavigationBar akan menutupi seluruh halaman).
+    heightFactor: 1,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maks),
+      child: child,
+    ),
+  );
 }
 
 /// Kartu putih standar: sudut membulat, melayang dengan bayangan lembut.
@@ -117,7 +126,10 @@ class KartuApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final sudut = BorderRadius.circular(AppRadius.besar);
     return DecoratedBox(
-      decoration: BoxDecoration(borderRadius: sudut, boxShadow: AppShadows.kartu),
+      decoration: BoxDecoration(
+        borderRadius: sudut,
+        boxShadow: AppShadows.kartu,
+      ),
       child: Material(
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
@@ -151,15 +163,15 @@ class IkonKotak extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: ukuran,
-        height: ukuran,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: latar,
-          borderRadius: BorderRadius.circular(ukuran * 0.32),
-        ),
-        child: Icon(icon, size: ukuran * 0.52, color: warna),
-      );
+    width: ukuran,
+    height: ukuran,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: latar,
+      borderRadius: BorderRadius.circular(ukuran * 0.32),
+    ),
+    child: Icon(icon, size: ukuran * 0.52, color: warna),
+  );
 }
 
 /// Label kecil berbentuk pil, mis. tipe pelanggan atau status akun.
@@ -168,22 +180,31 @@ class Lencana extends StatelessWidget {
   final Color latar;
   final Color warna;
 
-  const Lencana(this.label,
-      {super.key, this.latar = AppColors.mint, this.warna = AppColors.mintText});
+  const Lencana(
+    this.label, {
+    super.key,
+    this.latar = AppColors.mint,
+    this.warna = AppColors.mintText,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(
-            color: latar, borderRadius: BorderRadius.circular(20)),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontSize: 11.5, fontWeight: FontWeight.w700, color: warna),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+    decoration: BoxDecoration(
+      color: latar,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+        color: warna,
+      ),
+    ),
+  );
 }
 
 /// Judul bagian di dalam halaman, opsional dengan aksi di kanan.
@@ -195,35 +216,38 @@ class JudulBagian extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            // Garis aksen kecil hijau-kuning sebagai penanda bagian
-            Container(
-              width: 4,
-              height: 16,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppColors.primaryLight, AppColors.aksen],
-                ),
-              ),
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      children: [
+        // Garis aksen kecil hijau-kuning sebagai penanda bagian
+        Container(
+          width: 4,
+          height: 16,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.primaryLight, AppColors.aksen],
             ),
-            Expanded(
-              child: Text(teks,
-                  style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.1,
-                      color: AppColors.textDark)),
-            ),
-            ?aksi,
-          ],
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            teks,
+            style: const TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.1,
+              color: AppColors.textDark,
+            ),
+          ),
+        ),
+        ?aksi,
+      ],
+    ),
+  );
 }
 
 /// Banner galat dengan tombol "Coba lagi".
@@ -235,35 +259,42 @@ class BannerGalat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-        decoration: BoxDecoration(
-          color: AppColors.dangerSoft,
-          borderRadius: BorderRadius.circular(AppRadius.sedang),
-          border: Border.all(color: AppColors.dangerLine),
+    padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+    decoration: BoxDecoration(
+      color: AppColors.dangerSoft,
+      borderRadius: BorderRadius.circular(AppRadius.sedang),
+      border: Border.all(color: AppColors.dangerLine),
+    ),
+    child: Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.cloud_off_rounded,
+            size: 20,
+            color: AppColors.danger,
+          ),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                  color: Colors.white, shape: BoxShape.circle),
-              child: const Icon(Icons.cloud_off_rounded,
-                  size: 20, color: AppColors.danger),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(pesan,
-                  style: const TextStyle(color: AppColors.danger, height: 1.3)),
-            ),
-            if (onUlangi != null)
-              TextButton(
-                onPressed: onUlangi,
-                style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                child: const Text('Coba lagi'),
-              ),
-          ],
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            pesan,
+            style: const TextStyle(color: AppColors.danger, height: 1.3),
+          ),
         ),
-      );
+        if (onUlangi != null)
+          TextButton(
+            onPressed: onUlangi,
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Coba lagi'),
+          ),
+      ],
+    ),
+  );
 }
 
 /// Tampilan saat daftar kosong: ikon, penjelasan, dan aksi yang disarankan.
@@ -285,35 +316,40 @@ class KeadaanKosong extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IkonKotak(icon, ukuran: 64),
-            const SizedBox(height: 16),
-            Text(judul,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textDark)),
-            if (pesan != null) ...[
-              const SizedBox(height: 6),
-              Text(pesan!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textMuted, height: 1.4)),
-            ],
-            if (labelAksi != null && onAksi != null) ...[
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                onPressed: onAksi,
-                icon: const Icon(Icons.add_rounded),
-                label: Text(labelAksi!),
-              ),
-            ],
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IkonKotak(icon, ukuran: 64),
+        const SizedBox(height: 16),
+        Text(
+          judul,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textDark,
+          ),
         ),
-      );
+        if (pesan != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            pesan!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textMuted, height: 1.4),
+          ),
+        ],
+        if (labelAksi != null && onAksi != null) ...[
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: onAksi,
+            icon: const Icon(Icons.add_rounded),
+            label: Text(labelAksi!),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// Tombol aksi utama selebar layar dengan indikator memuat.
@@ -335,18 +371,20 @@ class TombolUtama extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FilledButton.icon(
-        onPressed: memuat ? null : onPressed,
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        icon: memuat
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : Icon(icon),
-        label: Text(memuat ? labelMemuat : label),
-      );
+    onPressed: memuat ? null : onPressed,
+    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+    icon: memuat
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          )
+        : Icon(icon),
+    label: Text(memuat ? labelMemuat : label),
+  );
 }
 
 /// Area tombol yang menempel di bawah layar (tetap terlihat saat keyboard
@@ -358,27 +396,106 @@ class BilahAksiBawah extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: LebarKonten(
-            maks: 640,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 8),
-                    children[i],
-                  ],
-                ],
-              ),
-            ),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(top: BorderSide(color: AppColors.border)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: LebarKonten(
+        maks: 640,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                children[i],
+              ],
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
+}
+
+/// Blok abu-abu berdenyut sebagai penampang data yang sedang dimuat.
+/// Susun beberapa blok (lebar/tinggi berbeda) agar bentuk meniru konten asli.
+class Skeleton extends StatefulWidget {
+  final double? width;
+  final double height;
+  final double radius;
+
+  const Skeleton({
+    super.key,
+    this.width,
+    required this.height,
+    this.radius = 8,
+  });
+
+  @override
+  State<Skeleton> createState() => _SkeletonState();
+}
+
+class _SkeletonState extends State<Skeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _denyut = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _denyut.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: Tween<double>(
+      begin: 0.45,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _denyut, curve: Curves.easeInOut)),
+    child: Container(
+      width: widget.width,
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: AppColors.border,
+        borderRadius: BorderRadius.circular(widget.radius),
+      ),
+    ),
+  );
+}
+
+/// Kartu penampang meniru [KartuApp] berisi baris-baris skeleton.
+class SkeletonKartu extends StatelessWidget {
+  final int baris;
+
+  const SkeletonKartu({super.key, this.baris = 3});
+
+  @override
+  Widget build(BuildContext context) => KartuApp(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Skeleton(width: 44, height: 44, radius: 14),
+            const SizedBox(width: 12),
+            Expanded(child: Skeleton(height: 14)),
+          ],
+        ),
+        for (var i = 1; i < baris; i++) ...[
+          const SizedBox(height: 12),
+          FractionallySizedBox(
+            widthFactor: i == baris - 1 ? 0.6 : 1,
+            alignment: Alignment.centerLeft,
+            child: Skeleton(height: 12),
+          ),
+        ],
+      ],
+    ),
+  );
 }
