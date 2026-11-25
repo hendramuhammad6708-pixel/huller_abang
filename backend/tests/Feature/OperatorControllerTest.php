@@ -178,7 +178,8 @@ class OperatorControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data', null);
 
-        $this->assertDatabaseMissing('users', ['id' => $operator->id]);
+        // Hapus aman: baris tetap ada (deleted_at terisi) agar transaksi lama utuh
+        $this->assertSoftDeleted('users', ['id' => $operator->id]);
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 }

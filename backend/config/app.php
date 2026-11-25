@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Waktu lokal huller (WIB). Dengan UTC, antara 00:00-07:00 tanggal "hari ini"
+    // dari aplikasi dianggap masa depan oleh validasi before_or_equal:today.
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
     |--------------------------------------------------------------------------

@@ -24,21 +24,27 @@ Route::get('/health', function () {
     }
 });
 
-Route::post('/login', [AuthController::class, 'login']);
+// Dibatasi (lihat limiter "login" di AppServiceProvider) agar kata sandi tidak bisa ditebak
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
+// Keluar tetap boleh walau akun sudah dinonaktifkan (tokennya perlu dicabut)
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+// Semua route di bawah butuh token Sanctum dan akun yang masih aktif.
+Route::middleware(['auth:sanctum', 'aktif'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::post('/bagi-hasil', [BagiHasilController::class, 'hitung']);
 
-    // Data master pendukung form padi masuk (baca saja untuk operator)
+    // Data master pendukung form padi masuk. Operator boleh membaca dan menambah
+    // pelanggan baru (tipe petani/pengepul saja); ubah dan hapus tetap khusus owner.
     Route::get('/pelanggan', [PelangganController::class, 'index']);
+    Route::post('/pelanggan', [PelangganController::class, 'store']);
     Route::get('/pengaturan', [PengaturanController::class, 'show']);
     Route::get('/kelas-padi', [KelasPadiController::class, 'index']);
 });
 
-Route::middleware(['auth:sanctum', 'role:owner'])
+Route::middleware(['auth:sanctum', 'aktif', 'role:owner'])
     ->prefix('operators')
     ->group(function () {
         Route::get('/', [OperatorController::class, 'index']);
@@ -53,7 +59,7 @@ Route::middleware(['auth:sanctum', 'role:owner'])
 
 // --- Padi masuk & penjemuran (owner dan operator)
 // Operator adalah pengguna utama modul ini, jadi cukup token Sanctum.
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'aktif'])->group(function () {
     Route::get('/padi-masuk', [PadiMasukController::class, 'index']);
     Route::post('/padi-masuk', [PadiMasukController::class, 'store']);
     Route::get('/padi-masuk/{padiMasuk}', [PadiMasukController::class, 'show']);
@@ -71,9 +77,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Modul di bawah ini butuh token Sanctum + role owner (lihat docs/api/*.md)
-Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
-    // --- Pelanggan (feature/be-pelanggann)
-    Route::post('/pelanggan', [PelangganController::class, 'store']);
+Route::middleware(['auth:sanctum', 'aktif', 'role:owner'])->group(function () {
+    // --- Pelanggan (feature/be-pelanggann); tambah pelanggan ada di grup atas
     Route::get('/pelanggan/{id}/riwayat-transaksi', [PelangganController::class, 'riwayatTransaksi']);
     Route::get('/pelanggan/{id}', [PelangganController::class, 'show']);
     Route::put('/pelanggan/{id}', [PelangganController::class, 'update']);

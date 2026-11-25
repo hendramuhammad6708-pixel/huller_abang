@@ -14,8 +14,9 @@ class ModulTerkunciTest extends TestCase
     // Alamat modul yang wajib terkunci (role owner).
     // GET /pelanggan, /pengaturan, dan /kelas-padi sengaja dikecualikan:
     // operator butuh data master itu untuk mengisi form padi masuk.
+    // POST /pelanggan juga dikecualikan: operator boleh menambah pelanggan baru
+    // (aturannya diuji di PelangganOperatorTest).
     private const ALAMAT = [
-        ['POST', '/api/pelanggan'],
         ['GET', '/api/pelanggan/1'],
         ['GET', '/api/pelanggan/1/riwayat-transaksi'],
         ['PUT', '/api/pelanggan/1'],

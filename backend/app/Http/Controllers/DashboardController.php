@@ -14,31 +14,65 @@ class DashboardController extends Controller
 {
     public function summary(): JsonResponse
     {
-        $hariIni = now()->toDateString();
-        $aktif = fn () => PadiMasuk::where('status_transaksi', '!=', PadiMasuk::STATUS_VOID);
+        $operator = User::where('role', 'operator')
+            ->selectRaw('count(*) as total, coalesce(sum(case when aktif = 1 then 1 else 0 end), 0) as aktif')
+            ->first();
+
+        $padi = $this->ringkasPadiMasuk(now()->toDateString());
 
         return ApiResponse::sukses('Ringkasan dashboard', [
-            'total_operator' => User::where('role', 'operator')->count(),
-            'operator_aktif' => User::where('role', 'operator')->where('aktif', true)->count(),
+            'total_operator' => (int) $operator->total,
+            'operator_aktif' => (int) $operator->aktif,
             'total_pelanggan' => Pelanggan::count(),
             'pelanggan_per_tipe' => $this->hitungPelangganPerTipe(),
             'total_kelas_padi' => KelasPadi::count(),
             'total_pengaturan' => Pengaturan::count(),
             'padi_masuk' => [
-                'jumlah_transaksi' => $aktif()->count(),
-                'total_berat_kg' => (float) $aktif()->sum('berat_basah_kg'),
+                'jumlah_transaksi' => $padi['jumlah'],
+                'total_berat_kg' => $padi['berat'],
                 'hari_ini' => [
-                    'jumlah_transaksi' => $aktif()->whereDate('tanggal', $hariIni)->count(),
-                    'total_berat_kg' => (float) $aktif()->whereDate('tanggal', $hariIni)->sum('berat_basah_kg'),
+                    'jumlah_transaksi' => $padi['jumlah_hari_ini'],
+                    'total_berat_kg' => $padi['berat_hari_ini'],
                 ],
             ],
             'penjemuran' => [
-                'sedang_dijemur' => $aktif()->where('status_transaksi', PadiMasuk::STATUS_DIJEMUR)->count(),
-                'siap_giling' => $aktif()->where('status_transaksi', PadiMasuk::STATUS_SIAP_GILING)->count(),
+                'sedang_dijemur' => $padi['dijemur'],
+                'siap_giling' => $padi['siap_giling'],
             ],
-            'transaksi' => $aktif()->count(),
+            // Kunci di bawah dipertahankan untuk kontrak dengan aplikasi:
+            // "transaksi" sama dengan padi_masuk.jumlah_transaksi, dan "stok"
+            // masih nol sampai modul stok dibuat.
+            'transaksi' => $padi['jumlah'],
             'stok' => 0,
         ]);
+    }
+
+    /**
+     * Seluruh angka padi masuk (tanpa void) dalam satu query agregat, bukan
+     * satu query per angka.
+     */
+    private function ringkasPadiMasuk(string $hariIni): array
+    {
+        $baris = PadiMasuk::where('status_transaksi', '!=', PadiMasuk::STATUS_VOID)
+            ->selectRaw(
+                'count(*) as jumlah,'
+                .' coalesce(sum(berat_basah_kg), 0) as berat,'
+                .' coalesce(sum(case when date(tanggal) = ? then 1 else 0 end), 0) as jumlah_hari_ini,'
+                .' coalesce(sum(case when date(tanggal) = ? then berat_basah_kg else 0 end), 0) as berat_hari_ini,'
+                .' coalesce(sum(case when status_transaksi = ? then 1 else 0 end), 0) as dijemur,'
+                .' coalesce(sum(case when status_transaksi = ? then 1 else 0 end), 0) as siap_giling',
+                [$hariIni, $hariIni, PadiMasuk::STATUS_DIJEMUR, PadiMasuk::STATUS_SIAP_GILING]
+            )
+            ->first();
+
+        return [
+            'jumlah' => (int) $baris->jumlah,
+            'berat' => (float) $baris->berat,
+            'jumlah_hari_ini' => (int) $baris->jumlah_hari_ini,
+            'berat_hari_ini' => (float) $baris->berat_hari_ini,
+            'dijemur' => (int) $baris->dijemur,
+            'siap_giling' => (int) $baris->siap_giling,
+        ];
     }
 
     private function hitungPelangganPerTipe(): array

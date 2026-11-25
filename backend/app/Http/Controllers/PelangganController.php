@@ -10,6 +10,7 @@ use App\Services\PadiMasukService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PelangganController extends Controller
 {
@@ -47,11 +48,12 @@ class PelangganController extends Controller
     // GET /api/pelanggan/{id}
     public function show(string $id)
     {
-        $pelanggan = Pelanggan::findOrFail($id);
+        $pelanggan = Pelanggan::with('pembuat:id,nama,role')->findOrFail($id);
 
         return ApiResponse::sukses(
             'Detail pelanggan',
             $pelanggan->only(['id', 'nama', 'kontak', 'tipe_pelanggan', 'created_at', 'updated_at'])
+                + ['dibuat_oleh' => $pelanggan->pembuat?->only(['id', 'nama', 'role'])]
         );
     }
 
@@ -126,9 +128,23 @@ class PelangganController extends Controller
     }
 
     // POST /api/pelanggan
+    // Owner dan operator boleh menambah (operator hanya petani/pengepul, lihat PelangganRequest)
     public function store(PelangganRequest $request)
     {
-        $pelanggan = Pelanggan::create($request->validated());
+        $data = $request->validated();
+
+        // Tolak duplikat yang jelas: nama dan kontak sama dengan pelanggan aktif.
+        // Nama saja tidak cukup karena dua orang bisa bernama sama.
+        if (! empty($data['kontak'])
+            && Pelanggan::where('kontak', $data['kontak'])
+                ->whereRaw('lower(nama) = ?', [mb_strtolower($data['nama'])])
+                ->exists()) {
+            throw ValidationException::withMessages([
+                'nama' => 'Pelanggan dengan nama dan kontak yang sama sudah ada',
+            ]);
+        }
+
+        $pelanggan = Pelanggan::create($data + ['dibuat_oleh' => $request->user()->id]);
 
         return ApiResponse::sukses(
             'Pelanggan berhasil ditambahkan',

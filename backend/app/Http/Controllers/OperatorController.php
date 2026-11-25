@@ -97,6 +97,12 @@ class OperatorController extends Controller
 
         $user->update($data);
 
+        // Dinonaktifkan atau sandi diganti: semua sesi lama harus berakhir,
+        // kalau tidak operator tetap bisa memakai token yang sudah dikeluarkan.
+        if (isset($data['password']) || (array_key_exists('aktif', $data) && ! $data['aktif'])) {
+            $user->tokens()->delete();
+        }
+
         return ApiResponse::sukses('Operator berhasil diperbarui', [
             'operator' => $this->formatOperator($user->fresh()),
         ]);

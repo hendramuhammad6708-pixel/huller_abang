@@ -50,7 +50,9 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Token kedaluwarsa setelah 7 hari (10080 menit); atur lewat SANCTUM_EXPIRATION
+    // di .env. Aplikasi Flutter menanggapi 401 dengan kembali ke halaman login.
+    'expiration' => env('SANCTUM_EXPIRATION', 10080),
 
     /*
     |--------------------------------------------------------------------------

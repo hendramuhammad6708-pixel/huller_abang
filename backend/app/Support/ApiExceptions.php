@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -39,6 +40,17 @@ class ApiExceptions
             }
 
             return ApiResponse::gagal('Sesi berakhir atau token tidak diberikan.', 401);
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $tunggu = (int) ($e->getHeaders()['Retry-After'] ?? 60);
+
+            return ApiResponse::gagal("Terlalu banyak percobaan. Coba lagi dalam {$tunggu} detik.", 429)
+                ->withHeaders(['Retry-After' => $tunggu]);
         });
 
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
