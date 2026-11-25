@@ -1,34 +1,15 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../../core/api_client.dart';
-import '../../../core/sesi.dart';
+import '../../core/api_client.dart';
+import '../../core/sesi.dart';
 import 'penjemuran_model.dart';
 
-/// Gunakan base URL dari ApiClient (sama dengan sisa app).
+/// Penjemuran lewat [ApiClient] yang sama dengan fitur lain, sehingga token,
+/// batas waktu, penanganan sesi berakhir (401), dan format galat seragam.
+/// Galat dilempar sebagai [Exception] berisi pesan dari server.
 class PenjemuranService {
-  PenjemuranService({Future<String?> Function()? tokenGetter});
+  /// [api] bisa diganti untuk test; bawaannya klien milik [Sesi].
+  PenjemuranService({ApiClient? api}) : _api = api ?? Sesi.instance.api;
 
-  Future<Map<String, String>> _headers() async {
-    final token = Sesi.instance.token ?? Sesi.instance.api.token;
-    return {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  Uri _uri(String path, [Map<String, String>? query]) {
-    final base = ApiClient.dasar.replaceAll(RegExp(r'/api/?$'), '');
-    final uri = Uri.parse('$base/api$path');
-    if (query == null || query.isEmpty) return uri;
-    return uri.replace(queryParameters: query);
-  }
-
-  dynamic _handle(http.Response res) {
-    final body = res.body.isEmpty ? {} : jsonDecode(res.body);
-    if (res.statusCode >= 200 && res.statusCode < 300) return body['data'] ?? body;
-    throw Exception((body is Map ? body['message'] : null) ?? 'Permintaan gagal (${res.statusCode})');
-  }
+  final ApiClient _api;
 
   Future<List<Penjemuran>> ambilSemua({
     String? status,
@@ -42,34 +23,58 @@ class PenjemuranService {
     if (tanggalDari != null) q['tanggal_dari'] = _fmt(tanggalDari);
     if (tanggalSampai != null) q['tanggal_sampai'] = _fmt(tanggalSampai);
 
-    final res = await http
-        .get(_uri('/penjemuran', q), headers: await _headers())
-        .timeout(const Duration(seconds: 15));
-    final data = _handle(res);
+    final query = q.isEmpty ? '' : '?${Uri(queryParameters: q).query}';
+    final data = _hasil(await _api.get('/penjemuran$query'));
     if (data is List) {
-      return data.map((e) => Penjemuran.fromJson(e as Map<String, dynamic>)).toList();
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(Penjemuran.fromJson)
+          .toList();
     }
     return [];
   }
 
   Future<void> mulai(int id, DateTime tanggalMulai) async {
-    final res = await http.post(
-      _uri('/penjemuran/$id/mulai'),
-      headers: await _headers(),
-      body: jsonEncode({'tanggal_mulai': _fmt(tanggalMulai)}),
+    _hasil(
+      await _api.post('/penjemuran/$id/mulai', {
+        'tanggal_mulai': _fmt(tanggalMulai),
+      }),
     );
-    _handle(res);
   }
 
-  Future<void> selesai(int id, DateTime tanggalSelesai, double beratKering) async {
-    final res = await http.post(
-      _uri('/penjemuran/$id/selesai'),
-      headers: await _headers(),
-      body: jsonEncode({'tanggal_selesai': _fmt(tanggalSelesai), 'berat_kering': beratKering}),
+  Future<void> selesai(
+    int id,
+    DateTime tanggalSelesai,
+    double beratKering,
+  ) async {
+    _hasil(
+      await _api.post('/penjemuran/$id/selesai', {
+        'tanggal_selesai': _fmt(tanggalSelesai),
+        'berat_kering': beratKering,
+      }),
     );
-    _handle(res);
+  }
+
+  /// Tandai padi (berstatus Siap Giling) sudah selesai digiling. Setelah ini
+  /// padi hilang dari daftar penjemuran dan transaksinya tidak bisa dibatalkan.
+  Future<void> selesaiGiling(int id, {DateTime? tanggal}) async {
+    _hasil(
+      await _api.post(
+        '/padi-masuk/$id/selesai-giling',
+        tanggal == null ? null : {'tanggal_selesai_giling': _fmt(tanggal)},
+      ),
+    );
+  }
+
+  /// Kembalikan `data` bila sukses; bila gagal lempar pesan terperinci
+  /// (galat validasi per field lebih informatif daripada "Data tidak valid").
+  dynamic _hasil(ApiJawaban jwb) {
+    if (jwb.sukses) return jwb.data;
+    throw Exception(jwb.errors.values.firstOrNull ?? jwb.pesan);
   }
 
   static String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 }

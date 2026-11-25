@@ -195,11 +195,7 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
                     BannerGalat(c.galat!, onUlangi: () => c.muat(paksa: true)),
                     const SizedBox(height: 16),
                   ],
-                  _ringkasan(
-                    items.where((e) => e.status != 'void').length,
-                    c.totalKg,
-                    c.adaFilter,
-                  ),
+                  _ringkasan(c.jumlahAktif, c.totalKg, c.adaFilter),
                   const SizedBox(height: 16),
                   FilterPadiBar(
                     controller: c,
@@ -246,20 +242,23 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(samping, 0, samping, 96),
                 sliver: SliverList.builder(
-                  itemCount: baris.length,
-                  itemBuilder: (_, i) => switch (baris[i]) {
-                    final _Kelompok k => _judulTanggal(k),
-                    final PadiMasuk p => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: PadiMasukCard(
-                        padi: p,
-                        onCetak: () => _cetak(p),
-                        onBagikan: () => _bagikan(p),
-                        onVoid: () => _batalkan(p),
-                      ),
-                    ),
-                    _ => const SizedBox.shrink(),
-                  },
+                  // Satu baris tambahan di akhir untuk tombol "Muat lebih banyak"
+                  itemCount: baris.length + (c.adaLagi ? 1 : 0),
+                  itemBuilder: (_, i) => i == baris.length
+                      ? _tombolMuatLagi(c)
+                      : switch (baris[i]) {
+                          final _Kelompok k => _judulTanggal(k),
+                          final PadiMasuk p => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: PadiMasukCard(
+                              padi: p,
+                              onCetak: () => _cetak(p),
+                              onBagikan: () => _bagikan(p),
+                              onVoid: () => _batalkan(p),
+                            ),
+                          ),
+                          _ => const SizedBox.shrink(),
+                        },
                 ),
               ),
           ],
@@ -267,6 +266,23 @@ class _RiwayatPadiPageState extends State<RiwayatPadiPage> {
       ),
     );
   }
+
+  /// Muat halaman berikutnya; ditampilkan di akhir daftar selama masih ada data.
+  Widget _tombolMuatLagi(PadiMasukController c) => Padding(
+    padding: const EdgeInsets.only(top: 6, bottom: 12),
+    child: OutlinedButton.icon(
+      key: const Key('btn-muat-lagi'),
+      onPressed: c.memuatLagi ? null : c.muatLagi,
+      icon: c.memuatLagi
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.expand_more_rounded),
+      label: Text(c.memuatLagi ? 'Memuat…' : 'Muat lebih banyak'),
+    ),
+  );
 
   Widget _judulTanggal(_Kelompok k) => Padding(
     padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),

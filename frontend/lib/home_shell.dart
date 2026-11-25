@@ -41,7 +41,8 @@ const _menuPenjemuran = _Menu(
   Icons.wb_sunny_outlined,
   Icons.wb_sunny,
   'Penjemuran',
-  'Mulai & selesaikan penjemuran',
+  // Tidak lagi mengulang judul; jumlah per status ada di chip filter halaman ini
+  'Pantau jemuran dan susut padi',
 );
 const _menuPelanggan = _Menu(
   Icons.groups_outlined,
@@ -227,9 +228,7 @@ class _HomeShellState extends State<HomeShell> {
       pelanggan: _pelanggan,
       pengaturan: _pengaturan,
     );
-    final penjemuran = PenjemuranPage(
-      service: PenjemuranService(tokenGetter: () async => Sesi.instance.token),
-    );
+    final penjemuran = PenjemuranPage(service: PenjemuranService());
 
     // Daftar menu dan halaman mengikuti role (urutan harus sama)
     final menu = owner

@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Backend lokal berjalan di http:// (emulator 10.0.2.2, adb reverse localhost).
+         Hanya build debug yang boleh memakai HTTP tanpa enkripsi. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

@@ -16,7 +16,17 @@ class ApiClient {
 
   static String get dasar => _dasar;
 
+  /// Klien HTTP yang dipakai; bisa diganti (mis. `MockClient`) saat test.
+  http.Client klien;
+
+  ApiClient({http.Client? klien}) : klien = klien ?? http.Client();
+
   String? token;
+
+  /// Dipanggil saat server menjawab 401 untuk permintaan yang membawa token
+  /// (token kedaluwarsa, dicabut, atau akun dinonaktifkan). Sesi memakainya
+  /// untuk kembali ke halaman login.
+  void Function()? onSesiBerakhir;
 
   Uri _uri(String path) => Uri.parse('$_dasar$path');
 
@@ -37,15 +47,51 @@ class ApiClient {
 
   Future<ApiJawaban> delete(String path) => _kirim('DELETE', path);
 
-  Future<ApiJawaban> _kirim(String metode, String path,
-      [Map<String, dynamic>? body]) async {
+  /// Ambil seluruh isi daftar berpaginasi (`data.items` + `data.meta.total`)
+  /// dengan memuat halaman demi halaman, supaya data ke-101 dan seterusnya
+  /// tidak hilang. Berhenti bila semua sudah terambil, halaman kosong, atau
+  /// [maksHalaman] tercapai (pengaman).
+  Future<HasilDaftar> getSemuaHalaman(
+    String path, {
+    int limit = 100,
+    int maksHalaman = 50,
+  }) async {
+    final items = <Map<String, dynamic>>[];
+    var total = 0;
+    final sambung = path.contains('?') ? '&' : '?';
+
+    for (var halaman = 1; halaman <= maksHalaman; halaman++) {
+      final jwb = await get('$path${sambung}limit=$limit&page=$halaman');
+      if (!jwb.sukses || jwb.data is! Map) {
+        return HasilDaftar(items: items, total: total, galat: jwb);
+      }
+      final data = jwb.data as Map<String, dynamic>;
+      final baris = (data['items'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final meta = data['meta'];
+      total = meta is Map ? (meta['total'] as num?)?.toInt() ?? 0 : 0;
+
+      items.addAll(baris);
+      if (baris.isEmpty || items.length >= total) break;
+    }
+    return HasilDaftar(items: items, total: total);
+  }
+
+  Future<ApiJawaban> _kirim(
+    String metode,
+    String path, [
+    Map<String, dynamic>? body,
+  ]) async {
     try {
       final uri = _uri(path);
       final req = http.Request(metode, uri)
         ..headers.addAll(_header(json: body != null));
       if (body != null) req.body = jsonEncode(body);
 
-      final streamed = await req.send().timeout(const Duration(seconds: 15));
+      final streamed = await klien
+          .send(req)
+          .timeout(const Duration(seconds: 15));
       final jwb = await http.Response.fromStream(streamed);
 
       Map<String, dynamic>? muatan;
@@ -56,13 +102,19 @@ class ApiClient {
         // Respons bukan JSON (mis. halaman error server): abaikan
       }
 
-      // Token ditolak: sesi dianggap berakhir
-      if (jwb.statusCode == 401) token = null;
+      // Token ditolak: sesi dianggap berakhir. Login yang salah juga 401 tetapi
+      // belum membawa token, jadi tidak dianggap sesi berakhir.
+      if (jwb.statusCode == 401) {
+        final punyaToken = token != null;
+        token = null;
+        if (punyaToken) onSesiBerakhir?.call();
+      }
 
       return ApiJawaban(
         status: jwb.statusCode,
         sukses: jwb.statusCode >= 200 && jwb.statusCode < 300,
-        pesan: muatan?['message'] as String? ??
+        pesan:
+            muatan?['message'] as String? ??
             'Permintaan gagal (HTTP ${jwb.statusCode})',
         data: muatan?['data'],
         errors: _rataErrors(muatan?['errors']),
@@ -88,6 +140,16 @@ class ApiClient {
     }
     return hasil;
   }
+}
+
+/// Hasil [ApiClient.getSemuaHalaman]. Bila [galat] terisi, [items] hanya
+/// berisi halaman yang sempat terambil sebelum gagal.
+class HasilDaftar {
+  final List<Map<String, dynamic>> items;
+  final int total;
+  final ApiJawaban? galat;
+
+  const HasilDaftar({required this.items, required this.total, this.galat});
 }
 
 class ApiJawaban {

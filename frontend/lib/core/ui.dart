@@ -400,20 +400,26 @@ class BilahAksiBawah extends StatelessWidget {
       color: Colors.white,
       border: Border(top: BorderSide(color: AppColors.border)),
     ),
-    child: SafeArea(
-      top: false,
-      child: LebarKonten(
-        maks: 640,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const SizedBox(height: 8),
-                children[i],
+    // bottomNavigationBar tidak ikut naik di atas keyboard (hanya body yang
+    // menyesuaikan), jadi tombol tertutup saat mengisi form. Padding setinggi
+    // keyboard mengangkat isi bilah tepat di atas keyboard.
+    child: Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: LebarKonten(
+          maks: 640,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  children[i],
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

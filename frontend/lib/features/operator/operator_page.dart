@@ -21,11 +21,11 @@ class Operator {
   });
 
   factory Operator.dariApi(Map<String, dynamic> j) => Operator(
-        id: j['id'] as int,
-        nama: j['nama'] as String,
-        username: j['username'] as String,
-        aktif: j['aktif'] == true,
-      );
+    id: j['id'] as int,
+    nama: j['nama'] as String,
+    username: j['username'] as String,
+    aktif: j['aktif'] == true,
+  );
 }
 
 /// Kelola akun operator (owner only): daftar, tambah, ubah, reset password,
@@ -47,16 +47,11 @@ class OperatorController extends ChangeNotifier {
     _galat = null;
     notifyListeners();
 
-    final jwb = await _sesi.api.get('/operators?limit=100');
-    if (jwb.sukses && jwb.data is Map) {
-      final items =
-          (jwb.data as Map<String, dynamic>)['items'] as List<dynamic>? ?? [];
-      _items = items
-          .whereType<Map<String, dynamic>>()
-          .map(Operator.dariApi)
-          .toList();
+    final hasil = await _sesi.api.getSemuaHalaman('/operators');
+    if (hasil.galat == null) {
+      _items = hasil.items.map(Operator.dariApi).toList();
     } else {
-      _galat = jwb.pesan;
+      _galat = hasil.galat!.pesan;
     }
 
     _memuat = false;
@@ -78,10 +73,7 @@ class OperatorController extends ChangeNotifier {
   }
 
   Future<void> ubah(int id, {String? nama, String? username}) async {
-    final body = <String, dynamic>{
-      'nama': ?nama,
-      'username': ?username,
-    };
+    final body = <String, dynamic>{'nama': ?nama, 'username': ?username};
     final jwb = await _sesi.api.put('/operators/$id', body);
     if (!jwb.sukses) throw jwb;
     await muat(paksa: true);
@@ -149,8 +141,11 @@ class _OperatorPageState extends State<OperatorPage> {
         );
         if (mounted) _snack('${hasil['nama']} ditambahkan');
       } else {
-        await _controller.ubah(op.id,
-            nama: hasil['nama'], username: hasil['username']);
+        await _controller.ubah(
+          op.id,
+          nama: hasil['nama'],
+          username: hasil['username'],
+        );
         if (mounted) _snack('Data ${hasil['nama']} diperbarui');
       }
     } on ApiJawaban catch (e) {
@@ -176,9 +171,7 @@ class _OperatorPageState extends State<OperatorPage> {
     try {
       await _controller.setAktif(op.id, !op.aktif);
       if (mounted) {
-        _snack(op.aktif
-            ? '${op.nama} dinonaktifkan'
-            : '${op.nama} diaktifkan');
+        _snack(op.aktif ? '${op.nama} dinonaktifkan' : '${op.nama} diaktifkan');
       }
     } on ApiJawaban catch (e) {
       if (mounted) _snack(e.pesan, galat: true);
@@ -189,7 +182,8 @@ class _OperatorPageState extends State<OperatorPage> {
     final ok = await konfirmasiHapus(
       context,
       judul: 'Hapus operator?',
-      pesan: 'Akun "${op.nama}" (@${op.username}) akan dihapus permanen. '
+      pesan:
+          'Akun "${op.nama}" (@${op.username}) akan dihapus permanen. '
           'Jika hanya ingin memblokir sementara, nonaktifkan saja.',
     );
     if (!ok || !mounted) return;
@@ -230,13 +224,16 @@ class _OperatorPageState extends State<OperatorPage> {
                           child: Center(child: CircularProgressIndicator()),
                         )
                       else if (c.galat != null)
-                        BannerGalat(c.galat!,
-                            onUlangi: () => c.muat(paksa: true))
+                        BannerGalat(
+                          c.galat!,
+                          onUlangi: () => c.muat(paksa: true),
+                        )
                       else if (c.items.isEmpty)
                         KeadaanKosong(
                           icon: Icons.badge_rounded,
                           judul: 'Belum ada operator',
-                          pesan: 'Buat akun untuk karyawan yang mencatat '
+                          pesan:
+                              'Buat akun untuk karyawan yang mencatat '
                               'padi masuk di huller.',
                           labelAksi: 'Tambah operator',
                           onAksi: () => _bukaForm(),
@@ -277,11 +274,14 @@ class _OperatorPageState extends State<OperatorPage> {
                 color: AppColors.mint,
                 borderRadius: BorderRadius.circular(AppRadius.sedang),
               ),
-              child: Text(inisial,
-                  style: const TextStyle(
-                      color: AppColors.mintText,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17)),
+              child: Text(
+                inisial,
+                style: const TextStyle(
+                  color: AppColors.mintText,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -289,30 +289,37 @@ class _OperatorPageState extends State<OperatorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(op.nama,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: op.aktif
-                            ? AppColors.textDark
-                            : AppColors.textMuted)),
+                Text(
+                  op.nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: op.aktif ? AppColors.textDark : AppColors.textMuted,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Row(
                   children: [
                     op.aktif
                         ? const Lencana('Aktif')
-                        : const Lencana('Nonaktif',
+                        : const Lencana(
+                            'Nonaktif',
                             latar: AppColors.dangerSoft,
-                            warna: AppColors.danger),
+                            warna: AppColors.danger,
+                          ),
                     const SizedBox(width: 8),
                     Flexible(
-                      child: Text('@${op.username}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12.5, color: AppColors.textMuted)),
+                      child: Text(
+                        '@${op.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -330,8 +337,10 @@ class _OperatorPageState extends State<OperatorPage> {
           PopupMenuButton<String>(
             key: Key('menu-operator-${op.id}'),
             tooltip: 'Pilihan',
-            icon: const Icon(Icons.more_vert_rounded,
-                color: AppColors.textMuted),
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: AppColors.textMuted,
+            ),
             onSelected: (v) => switch (v) {
               'ubah' => _bukaForm(op: op),
               'reset' => _resetPassword(op),
@@ -340,32 +349,43 @@ class _OperatorPageState extends State<OperatorPage> {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'ubah',
-                child: Row(children: [
-                  Icon(Icons.edit_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('Ubah data'),
-                ]),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Ubah data'),
+                  ],
+                ),
               ),
               PopupMenuItem(
                 key: Key('reset-${op.id}'),
                 value: 'reset',
-                child: const Row(children: [
-                  Icon(Icons.key_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('Reset kata sandi'),
-                ]),
+                child: const Row(
+                  children: [
+                    Icon(Icons.key_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Reset kata sandi'),
+                  ],
+                ),
               ),
               const PopupMenuDivider(),
               PopupMenuItem(
                 key: Key('hapus-${op.id}'),
                 value: 'hapus',
-                child: const Row(children: [
-                  Icon(Icons.delete_outline_rounded,
-                      size: 20, color: AppColors.danger),
-                  SizedBox(width: 12),
-                  Text('Hapus akun',
-                      style: TextStyle(color: AppColors.danger)),
-                ]),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: AppColors.danger,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Hapus akun',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -381,8 +401,11 @@ class _FieldSandi extends StatefulWidget {
   final String label;
   final bool autofocus;
 
-  const _FieldSandi(
-      {required this.controller, required this.label, this.autofocus = false});
+  const _FieldSandi({
+    required this.controller,
+    required this.label,
+    this.autofocus = false,
+  });
 
   @override
   State<_FieldSandi> createState() => _FieldSandiState();
@@ -393,24 +416,24 @@ class _FieldSandiState extends State<_FieldSandi> {
 
   @override
   Widget build(BuildContext context) => TextFormField(
-        controller: widget.controller,
-        obscureText: !_terlihat,
-        autofocus: widget.autofocus,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          helperText: 'Minimal 6 karakter',
-          prefixIcon: const Icon(Icons.lock_outline_rounded),
-          suffixIcon: IconButton(
-            tooltip: _terlihat ? 'Sembunyikan' : 'Lihat',
-            onPressed: () => setState(() => _terlihat = !_terlihat),
-            icon: Icon(_terlihat
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined),
-          ),
+    controller: widget.controller,
+    obscureText: !_terlihat,
+    autofocus: widget.autofocus,
+    decoration: InputDecoration(
+      labelText: widget.label,
+      helperText: 'Minimal 6 karakter',
+      prefixIcon: const Icon(Icons.lock_outline_rounded),
+      suffixIcon: IconButton(
+        tooltip: _terlihat ? 'Sembunyikan' : 'Lihat',
+        onPressed: () => setState(() => _terlihat = !_terlihat),
+        icon: Icon(
+          _terlihat ? Icons.visibility_off_outlined : Icons.visibility_outlined,
         ),
-        validator: (v) =>
-            (v ?? '').length < 6 ? 'Kata sandi minimal 6 karakter' : null,
-      );
+      ),
+    ),
+    validator: (v) =>
+        (v ?? '').length < 6 ? 'Kata sandi minimal 6 karakter' : null,
+  );
 }
 
 class _OperatorDialog extends StatefulWidget {
@@ -424,8 +447,7 @@ class _OperatorDialog extends StatefulWidget {
 class _OperatorDialogState extends State<_OperatorDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _nama = TextEditingController(text: widget.operator?.nama);
-  late final _username =
-      TextEditingController(text: widget.operator?.username);
+  late final _username = TextEditingController(text: widget.operator?.username);
   final _password = TextEditingController();
 
   bool get _ubah => widget.operator != null;
@@ -496,8 +518,9 @@ class _OperatorDialogState extends State<_OperatorDialog> {
       ),
       actions: [
         OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
         FilledButton(
           key: const Key('btn-simpan-operator'),
           onPressed: _simpan,
@@ -534,13 +557,17 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
         child: Form(
           key: _formKey,
           child: _FieldSandi(
-              controller: _sandi, label: 'Kata sandi baru', autofocus: true),
+            controller: _sandi,
+            label: 'Kata sandi baru',
+            autofocus: true,
+          ),
         ),
       ),
       actions: [
         OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {

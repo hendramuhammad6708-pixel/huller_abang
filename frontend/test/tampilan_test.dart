@@ -119,6 +119,21 @@ void main() {
         ),
       );
       expect(find.byKey(const Key('filter-tanggal')), findsOneWidget);
+
+      // Label filter ringkas ("Pelanggan"/"Kelas") sejajar vertikal dengan
+      // kotaknya, tidak menempel di tepi atas
+      for (final (kunci, label) in [
+        ('filter-pelanggan', 'Pelanggan'),
+        ('filter-kelas', 'Kelas'),
+      ]) {
+        final kotak = tester.getCenter(find.byKey(Key(kunci)));
+        final teks = tester.getCenter(find.text(label));
+        expect(
+          (teks.dy - kotak.dy).abs(),
+          lessThan(4),
+          reason: 'label $label tidak di tengah kotak',
+        );
+      }
     });
 
     testWidgets('form padi masuk', (tester) async {
@@ -132,7 +147,20 @@ void main() {
       );
       // Form harus tampil di layar, tidak tertutup bilah tombol bawah
       expect(find.byKey(const Key('field-pelanggan')), findsOneWidget);
+      // Tanpa sesi owner (setara operator) tombol tambah pelanggan tetap ada
+      expect(
+        find.byKey(const Key('btn-tambah-pelanggan-baru'), skipOffstage: false),
+        findsOneWidget,
+      );
       expect(tester.getSize(find.byType(BilahAksiBawah)).height, lessThan(200));
+      // Nama tombol utuh, bukan "& Lagi"/"Simpan & Lagi"
+      expect(find.text('Simpan & Catat Lagi'), findsOneWidget);
+      expect(find.text('Simpan'), findsOneWidget);
+      // Dua tombol simpan berukuran sama (dulu "Simpan" dua kali lebih lebar)
+      final simpan = tester.getSize(find.byKey(const Key('btn-simpan')));
+      final lagi = tester.getSize(find.byKey(const Key('btn-simpan-lagi')));
+      expect((simpan.width - lagi.width).abs(), lessThan(1));
+      expect((simpan.height - lagi.height).abs(), lessThan(1));
       // Validasi tampil tanpa merusak tata letak
       await tester.tap(find.byKey(const Key('btn-simpan')));
       await tester.pump();
@@ -140,6 +168,32 @@ void main() {
         find.text('Berat wajib diisi', skipOffstage: false),
         findsOneWidget,
       );
+    });
+
+    testWidgets('form padi masuk: tombol simpan tetap di atas keyboard', (
+      tester,
+    ) async {
+      await render(
+        tester,
+        FormPadiMasukPage(
+          controller: PadiMasukController(),
+          pelanggan: PelangganController(),
+          pengaturan: PengaturanController(),
+        ),
+      );
+      final tanpaKeyboard = tester.getRect(find.byKey(const Key('btn-simpan')));
+      expect(tanpaKeyboard.bottom, greaterThan(600));
+
+      // Keyboard setinggi 300 px terbuka: tombol harus naik, bukan tertutup
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+
+      final denganKeyboard = tester.getRect(
+        find.byKey(const Key('btn-simpan')),
+      );
+      expect(denganKeyboard.bottom, lessThanOrEqualTo(740 - 300));
+      expect(find.byKey(const Key('btn-simpan-lagi')), findsOneWidget);
     });
 
     testWidgets('dialog tambah pelanggan baru', (tester) async {
@@ -241,10 +295,74 @@ void main() {
         ),
       );
       expect(find.text('18.650,75 kg'), findsOneWidget);
+      // Kelas dan catatan tampil utuh (tidak terpotong "K…"/"gaha…" seperti dulu
+      // saat tiga ikon aksi berbagi baris dengan berat)
+      expect(find.text('Pandan Wangi Super Premium'), findsOneWidget);
+      expect(
+        find.text('Padi agak basah, dijemur ulang dua hari'),
+        findsOneWidget,
+      );
+      // Aksi ada di menu "⋮"; belum terlihat sebelum dibuka
+      expect(find.byKey(const Key('btn-cetak-1')), findsNothing);
+      await tester.tap(find.byKey(const Key('btn-menu-1')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('btn-cetak-1')), findsOneWidget);
+      expect(find.byKey(const Key('btn-bagikan-1')), findsOneWidget);
+      expect(find.byKey(const Key('btn-void-1')), findsOneWidget);
     });
 
-    testWidgets('kartu void tidak punya aksi cetak atau bagikan', (tester) async {
+    testWidgets(
+      'kartu menampilkan status, dan selesai giling tidak bisa dibatalkan',
+      (tester) async {
+        PadiMasuk padi(int id, String status) => PadiMasuk(
+          id: id,
+          tanggal: DateTime(2026, 10, 27),
+          pelangganId: 1,
+          pelangganNama: 'Pak Budi',
+          kelasId: 1,
+          kelasNama: 'Kelas 1',
+          beratKg: 100,
+          status: status,
+        );
+
+        await render(
+          tester,
+          dalamDaftar(
+            Column(
+              children: [
+                for (final (id, status) in [
+                  (1, 'masuk'),
+                  (2, 'dijemur'),
+                  (3, 'siap_giling'),
+                  (4, 'selesai_giling'),
+                ])
+                  PadiMasukCard(
+                    padi: padi(id, status),
+                    onCetak: () {},
+                    onBagikan: () {},
+                    onVoid: () {},
+                  ),
+              ],
+            ),
+          ),
+        );
+
+        expect(find.text('Masuk'), findsOneWidget);
+        expect(find.text('Dijemur'), findsOneWidget);
+        expect(find.text('Siap Giling'), findsOneWidget);
+        expect(find.text('Selesai Giling'), findsOneWidget);
+
+        // Selesai giling: menu hanya cetak dan bagikan (server menolak void)
+        await tester.tap(find.byKey(const Key('btn-menu-4')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('btn-cetak-4')), findsOneWidget);
+        expect(find.byKey(const Key('btn-void-4')), findsNothing);
+      },
+    );
+
+    testWidgets('kartu void tidak punya aksi cetak atau bagikan', (
+      tester,
+    ) async {
       await render(
         tester,
         dalamDaftar(

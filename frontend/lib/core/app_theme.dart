@@ -11,7 +11,9 @@ class AppColors {
   static const background = Color(0xFFF6F8F4);
   static const surface = Colors.white;
   static const textDark = Color(0xFF14231B);
-  static const textMuted = Color(0xFF66756B);
+  // Lebih gelap dari sebelumnya (0xFF66756B, kontras ~4,5:1 di atas latar) agar
+  // teks kecil tetap terbaca di bawah sinar matahari: kini sekitar 5,4:1.
+  static const textMuted = Color(0xFF5A695F);
   static const border = Color(0xFFE4EBE5);
   static const blueSoft = Color(0xFFDBEAFE);
   static const blue = Color(0xFF2563EB);
@@ -19,7 +21,8 @@ class AppColors {
   /// Kuning padi: aksen hangat untuk sorotan dan kelas padi.
   static const aksen = Color(0xFFF59E0B);
   static const goldSoft = Color(0xFFFEF3C7);
-  static const gold = Color(0xFFB45309);
+  // Amber-800: teks emas di atas goldSoft sebelumnya (0xFFB45309) sedikit di bawah 4,5:1
+  static const gold = Color(0xFF92400E);
 
   static const danger = Color(0xFFDC2626);
   static const dangerSoft = Color(0xFFFEE2E2);

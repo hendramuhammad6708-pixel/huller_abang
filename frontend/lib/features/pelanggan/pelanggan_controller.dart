@@ -23,16 +23,13 @@ class PelangganController extends ChangeNotifier {
     _galat = null;
     notifyListeners();
 
-    final jwb = await _sesi.api.get('/pelanggan?limit=100');
-    if (jwb.sukses && jwb.data is Map) {
-      final data = jwb.data as Map<String, dynamic>;
-      final items = data['items'] as List<dynamic>? ?? [];
-      _items = items
-          .whereType<Map<String, dynamic>>()
-          .map(Pelanggan.dariApi)
-          .toList();
+    // Semua halaman dimuat: pencarian dan filter tipe berjalan lokal, jadi
+    // daftar harus lengkap (bukan hanya 100 pertama).
+    final hasil = await _sesi.api.getSemuaHalaman('/pelanggan');
+    if (hasil.galat == null) {
+      _items = hasil.items.map(Pelanggan.dariApi).toList();
     } else {
-      _galat = jwb.pesan;
+      _galat = hasil.galat!.pesan;
     }
 
     _memuat = false;

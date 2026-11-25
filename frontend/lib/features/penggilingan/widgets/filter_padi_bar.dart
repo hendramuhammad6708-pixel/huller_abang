@@ -21,9 +21,13 @@ enum _Rentang {
     return switch (this) {
       _Rentang.hariIni => DateTimeRange(start: hariIni, end: hariIni),
       _Rentang.tujuhHari => DateTimeRange(
-          start: hariIni.subtract(const Duration(days: 6)), end: hariIni),
-      _Rentang.bulanIni =>
-        DateTimeRange(start: DateTime(n.year, n.month), end: hariIni),
+        start: hariIni.subtract(const Duration(days: 6)),
+        end: hariIni,
+      ),
+      _Rentang.bulanIni => DateTimeRange(
+        start: DateTime(n.year, n.month),
+        end: hariIni,
+      ),
     };
   }
 }
@@ -57,6 +61,8 @@ class FilterPadiBar extends StatelessWidget {
     required Key key,
     required IconData icon,
     required String hint,
+    // Label ringkas di kolom saat belum memilih; "Semua pelanggan" membungkus jadi dua baris
+    required String pendek,
     required int? nilai,
     required List<(int, String)> pilihan,
     required ValueChanged<int?> onChanged,
@@ -70,12 +76,16 @@ class FilterPadiBar extends StatelessWidget {
         color: aktif ? AppColors.mint.withValues(alpha: 0.5) : Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.sedang),
         border: Border.all(
-            color: aktif ? AppColors.primaryLight : AppColors.border),
+          color: aktif ? AppColors.primaryLight : AppColors.border,
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon,
-              size: 18, color: aktif ? AppColors.primary : AppColors.textMuted),
+          Icon(
+            icon,
+            size: 18,
+            color: aktif ? AppColors.primary : AppColors.textMuted,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
@@ -83,12 +93,31 @@ class FilterPadiBar extends StatelessWidget {
                 key: key,
                 isExpanded: true,
                 value: ada ? nilai : null,
-                hint: Text(hint, overflow: TextOverflow.ellipsis),
+                hint: Text(
+                  pendek,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Urutan sama dengan items di bawah: "semua" lalu tiap pilihan
+                // Dibungkus Align agar teks sejajar vertikal dengan ikon (tanpa
+                // ini teks menempel di tepi atas kotak)
+                selectedItemBuilder: (_) => [
+                  for (final teks in [pendek, ...pilihan.map((p) => p.$2)])
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        teks,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
                 borderRadius: BorderRadius.circular(AppRadius.sedang),
                 style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textDark,
-                    fontWeight: FontWeight.w600),
+                  fontSize: 14,
+                  color: AppColors.textDark,
+                  fontWeight: FontWeight.w600,
+                ),
                 items: [
                   DropdownMenuItem<int?>(value: null, child: Text(hint)),
                   for (final p in pilihan)
@@ -135,12 +164,16 @@ class FilterPadiBar extends StatelessWidget {
               const SizedBox(width: 8),
               ChoiceChip(
                 key: const Key('filter-tanggal'),
-                avatar: Icon(Icons.date_range_rounded,
-                    size: 18,
-                    color: rentangKhusus ? Colors.white : AppColors.textMuted),
-                label: Text(rentangKhusus
-                    ? '${formatTanggal(r.start)} – ${formatTanggal(r.end)}'
-                    : 'Pilih tanggal'),
+                avatar: Icon(
+                  Icons.date_range_rounded,
+                  size: 18,
+                  color: rentangKhusus ? Colors.white : AppColors.textMuted,
+                ),
+                label: Text(
+                  rentangKhusus
+                      ? '${formatTanggal(r.start)} – ${formatTanggal(r.end)}'
+                      : 'Pilih tanggal',
+                ),
                 selected: rentangKhusus,
                 onSelected: (_) => _pilihTanggal(context),
               ),
@@ -155,6 +188,7 @@ class FilterPadiBar extends StatelessWidget {
                 key: const Key('filter-pelanggan'),
                 icon: Icons.person_outline_rounded,
                 hint: 'Semua pelanggan',
+                pendek: 'Pelanggan',
                 nilai: controller.pelangganId,
                 pilihan: [
                   for (final p in pelanggan)
@@ -171,6 +205,7 @@ class FilterPadiBar extends StatelessWidget {
                 key: const Key('filter-kelas'),
                 icon: Icons.category_outlined,
                 hint: 'Semua kelas',
+                pendek: 'Kelas',
                 nilai: controller.kelasId,
                 pilihan: [for (final k in kelas) (k.id, k.nama)],
                 onChanged: (v) => v == null

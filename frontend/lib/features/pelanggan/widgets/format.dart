@@ -11,6 +11,11 @@ String formatKg(double kg) {
   return '${parts.length > 1 ? '$intPart,${parts[1]}' : intPart} kg';
 }
 
+/// Persen susut gaya Indonesia dengan koma desimal dan tanda %: 20,0%.
+/// (Bukan `formatPersen` di pengaturan, yang tanpa tanda % untuk isian angka.)
+String formatPersenSusut(double nilai, {int desimal = 1}) =>
+    '${nilai.toStringAsFixed(desimal).replaceAll('.', ',')}%';
+
 String formatTerakhir(
   DateTime? date, {
   String status = '',

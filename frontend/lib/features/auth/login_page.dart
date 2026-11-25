@@ -23,6 +23,13 @@ class _LoginPageState extends State<LoginPage> {
   String? _galat;
 
   @override
+  void initState() {
+    super.initState();
+    // Dikeluarkan paksa (token kedaluwarsa/dicabut): beri tahu alasannya
+    _galat = Sesi.instance.ambilPesanSesi();
+  }
+
+  @override
   void dispose() {
     _username.dispose();
     _password.dispose();
@@ -40,9 +47,11 @@ class _LoginPageState extends State<LoginPage> {
       await Sesi.instance.login(_username.text.trim(), _password.text);
       // Sukses: main.dart otomatis menampilkan HomeShell (ListenableBuilder).
     } on ApiJawaban catch (e) {
-      setState(() => _galat = e.status == 0
-          ? e.pesan
-          : (e.pesan.isEmpty ? 'Username atau kata sandi salah.' : e.pesan));
+      setState(
+        () => _galat = e.status == 0
+            ? e.pesan
+            : (e.pesan.isEmpty ? 'Username atau kata sandi salah.' : e.pesan),
+      );
     } finally {
       if (mounted) setState(() => _sedangKirim = false);
     }
@@ -51,10 +60,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     Widget bulatan(double ukuran, Color warna) => Container(
-          width: ukuran,
-          height: ukuran,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: warna),
-        );
+      width: ukuran,
+      height: ukuran,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: warna),
+    );
 
     return Scaffold(
       body: Container(
@@ -64,24 +73,31 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF16A34A), AppColors.primary, AppColors.primaryDark],
+            colors: [
+              Color(0xFF16A34A),
+              AppColors.primary,
+              AppColors.primaryDark,
+            ],
           ),
         ),
         child: Stack(
           children: [
             // Ornamen latar: lingkaran transparan dan kilau kuning padi
             Positioned(
-                top: -90,
-                right: -70,
-                child: bulatan(260, Colors.white.withValues(alpha: 0.07))),
+              top: -90,
+              right: -70,
+              child: bulatan(260, Colors.white.withValues(alpha: 0.07)),
+            ),
             Positioned(
-                top: 40,
-                right: 30,
-                child: bulatan(70, AppColors.aksen.withValues(alpha: 0.35))),
+              top: 40,
+              right: 30,
+              child: bulatan(70, AppColors.aksen.withValues(alpha: 0.35)),
+            ),
             Positioned(
-                bottom: -120,
-                left: -80,
-                child: bulatan(300, Colors.white.withValues(alpha: 0.05))),
+              bottom: -120,
+              left: -80,
+              child: bulatan(300, Colors.white.withValues(alpha: 0.05)),
+            ),
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
@@ -103,8 +119,11 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.grain_rounded,
-                              size: 40, color: AppColors.aksen),
+                          child: const Icon(
+                            Icons.grain_rounded,
+                            size: 40,
+                            color: AppColors.aksen,
+                          ),
                         ),
                         const SizedBox(height: 18),
                         const Text(
@@ -120,8 +139,9 @@ class _LoginPageState extends State<LoginPage> {
                         Text(
                           'Sistem Manajemen Produksi Padi',
                           style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.8)),
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
                         ),
                         const SizedBox(height: 32),
                         _kartuForm(),
@@ -129,16 +149,19 @@ class _LoginPageState extends State<LoginPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.help_outline_rounded,
-                                size: 16,
-                                color: Colors.white.withValues(alpha: 0.7)),
+                            Icon(
+                              Icons.help_outline_rounded,
+                              size: 16,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 'Lupa kata sandi? Hubungi pemilik huller.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.75)),
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                ),
                               ),
                             ),
                           ],
@@ -175,15 +198,20 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Selamat datang',
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: AppColors.textDark)),
+              const Text(
+                'Selamat datang',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: AppColors.textDark,
+                ),
+              ),
               const SizedBox(height: 4),
-              const Text('Masuk dengan akun yang diberikan pemilik huller.',
-                  style: TextStyle(color: AppColors.textMuted)),
+              const Text(
+                'Masuk dengan akun yang diberikan pemilik huller.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
               const SizedBox(height: 20),
               if (_galat != null) ...[
                 Container(
@@ -195,13 +223,20 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline_rounded,
-                          size: 20, color: AppColors.danger),
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 20,
+                        color: AppColors.danger,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(_galat!,
-                            style: const TextStyle(
-                                color: AppColors.danger, fontSize: 13.5)),
+                        child: Text(
+                          _galat!,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 13.5,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -240,9 +275,11 @@ class _LoginPageState extends State<LoginPage> {
                         : 'Lihat kata sandi',
                     onPressed: () =>
                         setState(() => _sandiTerlihat = !_sandiTerlihat),
-                    icon: Icon(_sandiTerlihat
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
+                    icon: Icon(
+                      _sandiTerlihat
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
                   ),
                 ),
                 validator: (v) =>

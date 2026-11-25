@@ -1,9 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Aplikasi memanggil API Laravel; tanpa izin ini build release tidak punya jaringan.
+         Cleartext HTTP (usesCleartextTraffic) sengaja TIDAK diaktifkan di sini: hanya
+         untuk build debug/profile (lihat src/debug dan src/profile). Release wajib HTTPS. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="huller_abang"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"

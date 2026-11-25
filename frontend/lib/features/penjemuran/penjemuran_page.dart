@@ -2,18 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
 import '../../core/ui.dart';
-import '../widgets/peringatan_card.dart';
+import '../pelanggan/widgets/format.dart';
+import '../penggilingan/models/padi_masuk.dart' show formatTanggal;
 import '../widgets/status_badge.dart';
 import 'penjemuran_model.dart';
 import 'penjemuran_service.dart';
 
-const int minHariJemur = 2; // peringatan jika jemur < 2 hari
-
-String _tgl(DateTime? d) => d == null
-    ? '-'
-    : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-String _kg(num? n) =>
-    n == null ? '-' : '${n.toStringAsFixed(n % 1 == 0 ? 0 : 2)} kg';
+// Memakai pemformat bersama (sama dengan halaman lain): "25 Nov 2026",
+// "1.250,5 kg", dan koma desimal pada persen.
+String _tgl(DateTime? d) => d == null ? '-' : formatTanggal(d);
+String _kg(num? n) => n == null ? '-' : formatKg(n.toDouble());
 
 class PenjemuranPage extends StatefulWidget {
   final PenjemuranService? service;
@@ -26,9 +24,7 @@ class PenjemuranPage extends StatefulWidget {
 class _PenjemuranPageState extends State<PenjemuranPage> {
   late final PenjemuranService _service = widget.service ?? PenjemuranService();
   List<Penjemuran> _data = [];
-  final List<Map<String, dynamic>> _daftarPelanggan = [];
   StatusPenjemuran? _filter;
-  int? _pelangganId;
   DateTimeRange? _rentang;
   bool _loading = true;
   String? _error;
@@ -52,7 +48,6 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
 
       final d = await _service.ambilSemua(
         status: status,
-        pelangganId: _pelangganId,
         tanggalDari: _rentang?.start,
         tanggalSampai: _rentang?.end,
       );
@@ -72,11 +67,14 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
   }
 
   Future<void> _mulai(Penjemuran p) async {
+    final sekarang = DateTime.now();
+    final hariIni = DateTime(sekarang.year, sekarang.month, sekarang.day);
     final tanggal = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: hariIni,
       firstDate: p.tanggalMasuk,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      // Server menolak tanggal di masa depan
+      lastDate: hariIni,
       helpText: 'Tanggal mulai jemur',
     );
     if (tanggal == null) return;
@@ -105,106 +103,127 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
     }
   }
 
+  Future<void> _pilihRentang() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: _rentang,
+    );
+    if (picked != null) {
+      setState(() => _rentang = picked);
+      await _muat();
+    }
+  }
+
+  Future<void> _selesaiGiling(Penjemuran p) async {
+    final ya = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const Key('dialog-selesai-giling'),
+        title: const Text('Padi sudah selesai digiling?'),
+        content: Text(
+          '${p.pelanggan} · ${_kg(p.beratBasah)} basah. Setelah ini padi hilang '
+          'dari daftar penjemuran dan transaksinya tidak bisa dibatalkan lagi.',
+          style: const TextStyle(color: AppColors.textMuted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Belum'),
+          ),
+          FilledButton(
+            key: const Key('btn-ya-selesai-giling'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ya, selesai'),
+          ),
+        ],
+      ),
+    );
+    if (ya != true) return;
+    try {
+      await _service.selesaiGiling(p.id);
+      _snack('Penggilingan selesai. Tercatat di riwayat padi masuk');
+      _muat();
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''), galat: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Jumlah per status hanya akurat saat tidak ada filter status (data lengkap)
+    int jumlah(StatusPenjemuran s) => _data.where((e) => e.status == s).length;
+    String label(StatusPenjemuran s) => _filter == null && !_loading
+        ? '${labelStatus(s)} (${jumlah(s)})'
+        : labelStatus(s);
+
     return Scaffold(
       body: Column(
         children: [
+          // Satu baris filter (dulu dua baris tombol besar): chip status yang bisa
+          // digeser, dan ikon tanggal yang disematkan di kanan supaya tetap
+          // terlihat di layar sempit (tidak ikut tergeser keluar layar).
           SizedBox(
             height: 56,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              children: [
-                _chip('Semua', _filter == null, () async {
-                  setState(() => _filter = null);
-                  await _muat();
-                }),
-                for (final s in StatusPenjemuran.values)
-                  _chip(labelStatus(s), _filter == s, () async {
-                    setState(() => _filter = s);
-                    await _muat();
-                  }),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.date_range, size: 18),
-                    label: Text(
-                      _rentang == null
-                          ? 'Tanggal'
-                          : '${_tgl(_rentang!.start)} - ${_tgl(_rentang!.end)}',
-                    ),
-                    onPressed: () async {
-                      final now = DateTime.now();
-                      final picked = await showDateRangePicker(
-                        context: context,
-                        firstDate: DateTime(now.year - 5),
-                        lastDate: DateTime(now.year, now.month, now.day),
-                        initialDateRange: _rentang,
-                      );
-                      if (picked != null) {
-                        setState(() => _rentang = picked);
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(20, 8, 4, 8),
+                    children: [
+                      _chip('Semua', _filter == null, () async {
+                        setState(() => _filter = null);
                         await _muat();
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: PopupMenuButton<int?>(
-                    onSelected: (v) async {
-                      setState(() => _pelangganId = v);
-                      await _muat();
-                    },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                        value: null,
-                        child: Text('Semua pelanggan'),
-                      ),
-                      for (final p in _daftarPelanggan)
-                        if (p['id'] != null)
-                          PopupMenuItem(
-                            value: p['id'] as int,
-                            child: Text(p['nama']?.toString() ?? '-'),
-                          ),
+                      }),
+                      for (final s in StatusPenjemuran.values)
+                        _chip(label(s), _filter == s, () async {
+                          setState(() => _filter = s);
+                          await _muat();
+                        }),
                     ],
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.person_outline_rounded, size: 18),
-                      onPressed: () {},
-                      label: Text(
-                        _pelangganId == null
-                            ? 'Pelanggan'
-                            : _daftarPelanggan
-                                      .where((e) => e['id'] == _pelangganId)
-                                      .map((e) => e['nama']?.toString() ?? '-')
-                                      .firstOrNull ??
-                                  'Pelanggan',
-                      ),
-                    ),
                   ),
                 ),
-                if (_filter != null || _pelangganId != null || _rentang != null)
-                  IconButton(
-                    tooltip: 'Reset filter',
-                    onPressed: () async {
-                      setState(() {
-                        _filter = null;
-                        _pelangganId = null;
-                        _rentang = null;
-                      });
-                      await _muat();
-                    },
-                    icon: const Icon(Icons.close),
+                IconButton(
+                  key: const Key('filter-tanggal-penjemuran'),
+                  tooltip: 'Filter tanggal masuk',
+                  onPressed: _pilihRentang,
+                  style: IconButton.styleFrom(
+                    backgroundColor: _rentang == null ? null : AppColors.mint,
                   ),
+                  icon: Icon(
+                    Icons.date_range_rounded,
+                    color: _rentang == null
+                        ? AppColors.textMuted
+                        : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
               ],
             ),
           ),
+          // Rentang aktif tampil sebagai chip yang bisa dihapus (hanya saat aktif)
+          if (_rentang != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: InputChip(
+                  key: const Key('filter-tanggal-aktif'),
+                  avatar: const Icon(Icons.event_rounded, size: 18),
+                  label: Text(
+                    'Masuk ${_tgl(_rentang!.start)} – ${_tgl(_rentang!.end)}',
+                  ),
+                  onPressed: _pilihRentang,
+                  onDeleted: () async {
+                    setState(() => _rentang = null);
+                    await _muat();
+                  },
+                ),
+              ),
+            ),
           const SizedBox(height: 4),
           Expanded(
             child: AnimatedSwitcher(
@@ -248,13 +267,14 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
       );
     }
     if (_data.isEmpty) {
+      final adaFilter = _filter != null || _rentang != null;
       return Center(
         child: KeadaanKosong(
           icon: Icons.wb_sunny_outlined,
-          judul: _filter == null ? 'Belum ada padi masuk' : 'Tidak ada hasil',
-          pesan: _filter == null
-              ? 'Catat dulu padi masuk di tab Padi Masuk, lalu mulai penjemurannya di sini.'
-              : 'Tidak ada padi berstatus ${labelStatus(_filter!)}.',
+          judul: adaFilter ? 'Tidak ada hasil' : 'Belum ada padi masuk',
+          pesan: adaFilter
+              ? 'Tidak ada padi yang cocok dengan filter ini.'
+              : 'Catat dulu padi masuk di tab Padi Masuk, lalu mulai penjemurannya di sini.',
         ),
       );
     }
@@ -332,9 +352,7 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
             _baris('Berat kering', _kg(p.beratKering)),
             _baris(
               'Susut',
-              p.persenSusut == null
-                  ? '-'
-                  : '${p.persenSusut!.toStringAsFixed(1)}%',
+              p.persenSusut == null ? '-' : formatPersenSusut(p.persenSusut!),
             ),
             if (singkat) ...[
               const SizedBox(height: 8),
@@ -359,6 +377,46 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
                 ],
               ),
             ],
+            // Belum 2 hari dijemur: tidak bisa diselesaikan, jelaskan sampai kapan
+            if (p.status == StatusPenjemuran.dijemur &&
+                !p.bolehDiselesaikan) ...[
+              const SizedBox(height: 8),
+              Row(
+                key: Key('info-belum-bisa-selesai-${p.id}'),
+                children: [
+                  const Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 16,
+                    color: AppColors.gold,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Belum bisa diselesaikan: minimal $minHariJemur hari '
+                      'jemur. Paling cepat ${_tgl(p.tanggalPalingCepatSelesai)}.',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            // Langkah terakhir alur: dari Siap Giling ke Selesai Giling
+            if (p.status == StatusPenjemuran.siapGiling) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  key: Key('btn-selesai-giling-${p.id}'),
+                  onPressed: () => _selesaiGiling(p),
+                  icon: const Icon(Icons.task_alt_rounded, size: 20),
+                  label: const Text('Selesai digiling'),
+                ),
+              ),
+            ],
             if (p.status != StatusPenjemuran.siapGiling) ...[
               const SizedBox(height: 12),
               Align(
@@ -370,7 +428,10 @@ class _PenjemuranPageState extends State<PenjemuranPage> {
                         label: const Text('Mulai jemur'),
                       )
                     : FilledButton.icon(
-                        onPressed: () => _selesai(p),
+                        key: Key('btn-selesaikan-${p.id}'),
+                        onPressed: p.bolehDiselesaikan
+                            ? () => _selesai(p)
+                            : null,
                         icon: const Icon(Icons.check_rounded, size: 20),
                         label: const Text('Selesaikan'),
                       ),
@@ -424,7 +485,17 @@ class _FormSelesai extends StatefulWidget {
 class _FormSelesaiState extends State<_FormSelesai> {
   final _key = GlobalKey<FormState>();
   final _kering = TextEditingController();
-  DateTime _selesai = DateTime.now();
+
+  static DateTime _hari(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  // Tanggal selesai paling cepat = mulai + minHariJemur hari; paling lambat hari ini
+  late final DateTime _paling = _hari(
+    p.tanggalPalingCepatSelesai ??
+        _hari(p.tanggalMulai!).add(const Duration(days: minHariJemur)),
+  );
+  late DateTime _selesai = _hari(DateTime.now()).isBefore(_paling)
+      ? _paling
+      : _hari(DateTime.now());
 
   Penjemuran get p => widget.item;
   double? get _k => double.tryParse(_kering.text.replaceAll(',', '.'));
@@ -445,8 +516,12 @@ class _FormSelesaiState extends State<_FormSelesai> {
     final t = await showDatePicker(
       context: context,
       initialDate: _selesai,
-      firstDate: p.tanggalMulai!,
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: _paling,
+      // Server menolak tanggal di masa depan
+      lastDate: _hari(DateTime.now()).isBefore(_paling)
+          ? _paling
+          : _hari(DateTime.now()),
+      helpText: 'Tanggal selesai (minimal $minHariJemur hari jemur)',
     );
     if (t != null) {
       setState(() => _selesai = t);
@@ -508,17 +583,9 @@ class _FormSelesaiState extends State<_FormSelesai> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Durasi: $_durasi hari   ·   Susut: ${susut == null ? '-' : '${susut.toStringAsFixed(1)}%'}',
+              'Durasi: $_durasi hari   ·   Susut: ${susut == null ? '-' : formatPersenSusut(susut)}',
               style: const TextStyle(color: AppColors.textMuted),
             ),
-            if (_durasi < minHariJemur) ...[
-              const SizedBox(height: 10),
-              const PeringatanCard(
-                judul: 'Durasi jemur kurang dari $minHariJemur hari',
-                pesan:
-                    'Padi mungkin belum cukup kering, tapi tetap bisa disimpan.',
-              ),
-            ],
             if (_durasi > batasDurasiTerlaluLama) ...[
               const SizedBox(height: 10),
               Lencana(
@@ -538,11 +605,14 @@ class _FormSelesaiState extends State<_FormSelesai> {
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  onPressed: () {
-                    if (_key.currentState!.validate()) {
-                      Navigator.pop(context, _HasilJemur(_selesai, _k!));
-                    }
-                  },
+                  // Pengaman: tanggal selalu >= mulai + minHariJemur lewat pemilih tanggal
+                  onPressed: _durasi < minHariJemur
+                      ? null
+                      : () {
+                          if (_key.currentState!.validate()) {
+                            Navigator.pop(context, _HasilJemur(_selesai, _k!));
+                          }
+                        },
                   child: const Text('Simpan hasil jemur'),
                 ),
               ],

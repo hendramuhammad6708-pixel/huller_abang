@@ -22,24 +22,45 @@ class Pengguna {
   bool get owner => role == 'owner';
 
   factory Pengguna.dariJson(Map<String, dynamic> j) => Pengguna(
-        id: j['id'] as int,
-        nama: j['nama'] as String,
-        username: j['username'] as String,
-        role: j['role'] as String,
-        aktif: j['aktif'] == true,
-      );
+    id: j['id'] as int,
+    nama: j['nama'] as String,
+    username: j['username'] as String,
+    role: j['role'] as String,
+    aktif: j['aktif'] == true,
+  );
 }
 
 /// Status sesi aplikasi. Token disimpan di SharedPreferences agar tetap
 /// login setelah aplikasi dibuka ulang.
 class Sesi extends ChangeNotifier {
-  Sesi._();
+  Sesi._() {
+    api.onSesiBerakhir = _sesiBerakhir;
+  }
   static final Sesi instance = Sesi._();
 
   final ApiClient api = ApiClient();
 
   Pengguna? _user;
   bool _memuat = true;
+
+  /// Terisi saat sesi diakhiri server (token kedaluwarsa/dicabut); halaman
+  /// login menampilkannya sekali lalu mengosongkannya lewat [ambilPesanSesi].
+  String? _pesanSesi;
+
+  /// Ambil pesan "sesi berakhir" (bila ada) dan kosongkan.
+  String? ambilPesanSesi() {
+    final pesan = _pesanSesi;
+    _pesanSesi = null;
+    return pesan;
+  }
+
+  Future<void> _sesiBerakhir() async {
+    // Hanya relevan saat sedang masuk; beberapa permintaan bisa gagal bersamaan
+    if (_user == null) return;
+    _pesanSesi = 'Sesi Anda telah berakhir. Silakan masuk kembali.';
+    await _buangSesi();
+    notifyListeners();
+  }
 
   Pengguna? get user => _user;
   String? get token => api.token;

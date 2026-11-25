@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/sesi.dart';
 import '../models/pelanggan.dart';
 import '../pelanggan_controller.dart';
 import '../pelanggan_validator.dart';
@@ -70,6 +71,17 @@ class _TambahPelangganDialogState extends State<TambahPelangganDialog> {
         _galat = e.errors.values.firstOrNull ?? e.pesan;
       });
     }
+  }
+
+  /// Operator tidak boleh membuat pelanggan "Milik Huller" (ditolak backend
+  /// dengan 422), jadi pilihannya disembunyikan. Tanpa sesi (mis. test) semua tampil.
+  List<TipePelanggan> get _daftarTipe {
+    final user = Sesi.instance.user;
+    final operator = user != null && !user.owner;
+    return [
+      for (final t in TipePelanggan.values)
+        if (!(operator && t == TipePelanggan.milikHuller)) t,
+    ];
   }
 
   IconData _ikonTipe(TipePelanggan tipe) => switch (tipe) {
@@ -169,7 +181,7 @@ class _TambahPelangganDialogState extends State<TambahPelangganDialog> {
                 },
                 child: Column(
                   children: [
-                    for (final t in TipePelanggan.values) ...[
+                    for (final t in _daftarTipe) ...[
                       RadioListTile<TipePelanggan>(
                         key: Key('tipe-baru-${t.nilaiApi}'),
                         value: t,
@@ -200,8 +212,7 @@ class _TambahPelangganDialogState extends State<TambahPelangganDialog> {
                           ),
                         ),
                       ),
-                      if (t != TipePelanggan.values.last)
-                        const SizedBox(height: 4),
+                      if (t != _daftarTipe.last) const SizedBox(height: 4),
                     ],
                   ],
                 ),

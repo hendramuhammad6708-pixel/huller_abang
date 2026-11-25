@@ -10,9 +10,17 @@ class PadiMasukController extends ChangeNotifier {
 
   List<PadiMasuk> _items = [];
   bool _memuat = false;
+  bool _memuatLagi = false;
   bool _sudahMuat = false;
   String? _galat;
   int _permintaan = 0;
+
+  // Halaman terakhir yang sudah dimuat dan ringkasan dari server untuk SELURUH
+  // hasil filter (bukan hanya halaman yang sudah terambil).
+  int _halaman = 1;
+  int _total = 0;
+  int? _jumlahAktifServer;
+  double? _totalKgServer;
 
   DateTimeRange? _rentang;
   int? _pelangganId;
@@ -28,9 +36,22 @@ class PadiMasukController extends ChangeNotifier {
   bool get adaFilter =>
       _rentang != null || _pelangganId != null || _kelasId != null;
 
-  double get totalKg => _items
-      .where((e) => e.status != 'void')
-      .fold(0, (jumlah, e) => jumlah + e.beratKg);
+  bool get memuatLagi => _memuatLagi;
+
+  /// Masih ada data di halaman berikutnya.
+  bool get adaLagi => _items.length < _total;
+
+  /// Jumlah transaksi aktif (tanpa void) pada seluruh hasil filter.
+  int get jumlahAktif =>
+      _jumlahAktifServer ?? _items.where((e) => e.status != 'void').length;
+
+  /// Total berat (tanpa void) pada seluruh hasil filter; cadangannya
+  /// menjumlah data yang sudah dimuat bila server lama belum mengirim ringkasan.
+  double get totalKg =>
+      _totalKgServer ??
+      _items
+          .where((e) => e.status != 'void')
+          .fold(0, (jumlah, e) => jumlah + e.beratKg);
 
   /// Path dengan query filter yang sedang aktif.
   String get path {
@@ -49,6 +70,7 @@ class PadiMasukController extends ChangeNotifier {
     // Hanya respons permintaan terbaru yang dipakai (filter bisa berganti cepat)
     final saya = ++_permintaan;
     _memuat = true;
+    _memuatLagi = false;
     _galat = null;
     notifyListeners();
 
@@ -62,6 +84,8 @@ class PadiMasukController extends ChangeNotifier {
           .whereType<Map<String, dynamic>>()
           .map(PadiMasuk.dariApi)
           .toList();
+      _bacaMeta(data['meta']);
+      _halaman = 1;
       _sudahMuat = true;
     } else {
       _galat = jwb.pesan;
@@ -69,6 +93,45 @@ class PadiMasukController extends ChangeNotifier {
 
     _memuat = false;
     notifyListeners();
+  }
+
+  /// Muat halaman berikutnya dan tambahkan ke daftar (tombol "Muat lebih banyak").
+  Future<void> muatLagi() async {
+    if (_memuat || _memuatLagi || !adaLagi) return;
+    final saya = _permintaan;
+    _memuatLagi = true;
+    notifyListeners();
+
+    final jwb = await _sesi.api.get('$path&page=${_halaman + 1}');
+    // Filter berganti selagi memuat: hasil halaman lama dibuang
+    if (saya != _permintaan) {
+      _memuatLagi = false;
+      return;
+    }
+
+    if (jwb.sukses && jwb.data is Map) {
+      final data = jwb.data as Map<String, dynamic>;
+      final baru = (data['items'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(PadiMasuk.dariApi);
+      // Cegah baris ganda bila ada transaksi baru yang menggeser halaman
+      final sudah = _items.map((e) => e.id).toSet();
+      _items = [..._items, ...baru.where((e) => !sudah.contains(e.id))];
+      _bacaMeta(data['meta']);
+      _halaman++;
+    } else {
+      _galat = jwb.pesan;
+    }
+
+    _memuatLagi = false;
+    notifyListeners();
+  }
+
+  void _bacaMeta(dynamic meta) {
+    if (meta is! Map) return;
+    _total = (meta['total'] as num?)?.toInt() ?? _items.length;
+    _jumlahAktifServer = (meta['jumlah_aktif'] as num?)?.toInt();
+    _totalKgServer = (meta['total_berat_kg'] as num?)?.toDouble();
   }
 
   Future<void> setFilter({

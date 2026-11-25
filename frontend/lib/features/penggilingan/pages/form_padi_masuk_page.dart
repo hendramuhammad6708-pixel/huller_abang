@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/app_theme.dart';
-import '../../../core/sesi.dart';
 import '../../../core/ui.dart';
 import '../../pelanggan/models/pelanggan.dart';
 import '../../pelanggan/pelanggan_controller.dart';
@@ -107,7 +106,11 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     if (_sedangSimpan) return;
 
     if (_pelangganId == null) {
-      tampilkanPesan(context, 'Pelanggan wajib dipilih dari daftar', galat: true);
+      tampilkanPesan(
+        context,
+        'Pelanggan wajib dipilih dari daftar',
+        galat: true,
+      );
       return;
     }
     if (_kelasId == null) {
@@ -127,14 +130,20 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
 
     Pelanggan? pelanggan;
     try {
-      pelanggan = widget.pelanggan.items.firstWhere((p) => p.id == _pelangganId);
+      pelanggan = widget.pelanggan.items.firstWhere(
+        (p) => p.id == _pelangganId,
+      );
     } catch (_) {
       pelanggan = null;
     }
     if (pelanggan == null) {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
-      tampilkanPesan(context, 'Pelanggan tidak valid, pilih kembali dari daftar', galat: true);
+      tampilkanPesan(
+        context,
+        'Pelanggan tidak valid, pilih kembali dari daftar',
+        galat: true,
+      );
       return;
     }
 
@@ -143,7 +152,11 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     if (kelas == null) {
       if (!mounted) return;
       setState(() => _sedangSimpan = false);
-      tampilkanPesan(context, 'Kelas padi tidak valid, pilih kembali', galat: true);
+      tampilkanPesan(
+        context,
+        'Kelas padi tidak valid, pilih kembali',
+        galat: true,
+      );
       return;
     }
 
@@ -160,7 +173,8 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
     try {
       await widget.controller.tambah(data);
       if (!mounted) return;
-      final pesan = 'Padi masuk ${pelanggan.nama} '
+      final pesan =
+          'Padi masuk ${pelanggan.nama} '
           '(${_berat.text.trim()} kg) dicatat';
       if (lagi) {
         setState(() => _sedangSimpan = false);
@@ -177,7 +191,8 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
       setState(() => _sedangSimpan = false);
       String pesan = 'Gagal menyimpan padi masuk';
       if (e is ApiJawaban) {
-        pesan = e.errors['berat_basah_kg'] ??
+        pesan =
+            e.errors['berat_basah_kg'] ??
             e.errors['berat_kg'] ??
             e.errors['pelanggan_id'] ??
             e.errors['kelas_padi_id'] ??
@@ -204,29 +219,72 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
   Widget _buildForm(BuildContext context) {
     final daftarPelanggan = widget.pelanggan.items;
     final kelas = widget.pengaturan.kelas;
-    final terpilih =
-        daftarPelanggan.where((p) => p.id == _pelangganId).firstOrNull;
+    final terpilih = daftarPelanggan
+        .where((p) => p.id == _pelangganId)
+        .firstOrNull;
     final hariIni = _hariIni();
     final kemarin = hariIni.subtract(const Duration(days: 1));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Catat Padi Masuk')),
-      bottomNavigationBar: BilahAksiBawah(children: [
-        TombolUtama(
-          key: const Key('btn-simpan'),
-          label: 'Simpan',
-          icon: Icons.check_rounded,
-          memuat: _sedangSimpan,
-          onPressed: () => _simpan(lagi: false),
-        ),
-        OutlinedButton.icon(
-          key: const Key('btn-simpan-lagi'),
-          onPressed: _sedangSimpan ? null : () => _simpan(lagi: true),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: const Icon(Icons.playlist_add_rounded),
-          label: const Text('Simpan & Catat Lagi'),
-        ),
-      ]),
+      // Dua tombol sebaris dengan ukuran SAMA (bukan bertumpuk, dan bukan satu
+      // jauh lebih besar dari yang lain). Perbedaannya hanya isi vs garis tepi.
+      // Tanpa ikon dan teks dibungkus FittedBox: "Simpan & Catat Lagi" tidak
+      // muat di setengah lebar layar HP bila ada ikon, dan tidak boleh dipotong
+      // atau dipendekkan jadi "& Lagi" yang membingungkan.
+      bottomNavigationBar: BilahAksiBawah(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('btn-simpan-lagi'),
+                  onPressed: _sedangSimpan ? null : () => _simpan(lagi: true),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Simpan & Catat Lagi', maxLines: 1),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  key: const Key('btn-simpan'),
+                  onPressed: _sedangSimpan ? null : () => _simpan(lagi: false),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _sedangSimpan
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Menyimpan…', maxLines: 1),
+                            ],
+                          )
+                        : const Text('Simpan', maxLines: 1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -238,7 +296,7 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Pelanggan: ketuk untuk membuka daftar yang bisa dicari
-                  const JudulBagian('Pelanggan'),
+                  const JudulBagian('Pelanggan *'),
                   KeyedSubtree(
                     key: const Key('field-pelanggan'),
                     child: FormField<int>(
@@ -250,8 +308,9 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         onTap: _pilihPelanggan,
                         child: InputDecorator(
                           decoration: InputDecoration(
-                            prefixIcon:
-                                const Icon(Icons.person_outline_rounded),
+                            prefixIcon: const Icon(
+                              Icons.person_outline_rounded,
+                            ),
                             suffixIcon: const Icon(Icons.expand_more_rounded),
                             errorText: state.errorText,
                           ),
@@ -261,42 +320,47 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                                       ? 'Belum ada pelanggan'
                                       : 'Pilih pelanggan',
                                   style: const TextStyle(
-                                      color: AppColors.textMuted),
+                                    color: AppColors.textMuted,
+                                  ),
                                 )
                               : Row(
                                   children: [
                                     Flexible(
-                                      child: Text(terpilih.nama,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
+                                      child: Text(
+                                        terpilih.nama,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Lencana(terpilih.tipe.label,
-                                        latar: terpilih.tipe.latar,
-                                        warna: terpilih.tipe.warna),
+                                    Lencana(
+                                      terpilih.tipe.label,
+                                      latar: terpilih.tipe.latar,
+                                      warna: terpilih.tipe.warna,
+                                    ),
                                   ],
                                 ),
                         ),
                       ),
                     ),
                   ),
-                  if (Sesi.instance.owner) ...[
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        key: const Key('btn-tambah-pelanggan-baru'),
-                        onPressed:
-                            _sedangSimpan ? null : _tambahPelangganBaru,
-                        icon: const Icon(Icons.add_rounded, size: 20),
-                        label: const Text('Tambah Pelanggan Baru'),
-                      ),
+                  // Owner dan operator boleh menambah pelanggan baru dari sini
+                  // (operator hanya tipe petani/pengepul, lihat dialognya)
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      key: const Key('btn-tambah-pelanggan-baru'),
+                      onPressed: _sedangSimpan ? null : _tambahPelangganBaru,
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      label: const Text('Tambah Pelanggan Baru'),
                     ),
-                  ],
+                  ),
                   const SizedBox(height: 22),
                   // Kelas: tombol pilihan, cukup satu ketukan
-                  const JudulBagian('Kelas padi'),
+                  const JudulBagian('Kelas padi *'),
                   FormField<int>(
                     key: const Key('field-kelas'),
                     validator: (_) => PadiMasukValidator.kelas(_kelasId),
@@ -305,9 +369,10 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                       children: [
                         if (kelas.isEmpty)
                           const Text(
-                              'Belum ada kelas padi. Owner dapat menambahkannya '
-                              'di menu Pengaturan.',
-                              style: TextStyle(color: AppColors.textMuted)),
+                            'Belum ada kelas padi. Owner dapat menambahkannya '
+                            'di menu Pengaturan.',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -326,29 +391,51 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         if (state.errorText != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 6, left: 12),
-                            child: Text(state.errorText!,
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.danger)),
+                            child: Text(
+                              state.errorText!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const JudulBagian('Berat & tanggal'),
+                  const JudulBagian('Berat & tanggal *'),
                   TextFormField(
                     key: const Key('field-berat'),
                     controller: _berat,
                     focusNode: _fokusBerat,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w700),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Berat padi',
                       hintText: 'Contoh: 250,5',
                       prefixIcon: Icon(Icons.scale_outlined),
-                      suffixText: 'kg',
+                      // suffixText baru tampil saat isian difokuskan; dibuat
+                      // selalu terlihat agar satuannya jelas sejak awal
+                      suffixIcon: Padding(
+                        padding: EdgeInsets.only(right: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(
+                            'kg',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     validator: PadiMasukValidator.berat,
                   ),
@@ -378,16 +465,19 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                                   setState(() => _tanggal = kemarin),
                             ),
                             ChoiceChip(
-                              avatar: Icon(Icons.event_rounded,
-                                  size: 18,
-                                  color: _tanggal != hariIni &&
-                                          _tanggal != kemarin
-                                      ? Colors.white
-                                      : AppColors.textMuted),
+                              avatar: Icon(
+                                Icons.event_rounded,
+                                size: 18,
+                                color:
+                                    _tanggal != hariIni && _tanggal != kemarin
+                                    ? Colors.white
+                                    : AppColors.textMuted,
+                              ),
                               label: Text(
-                                  _tanggal != hariIni && _tanggal != kemarin
-                                      ? formatTanggal(_tanggal)
-                                      : 'Tanggal lain'),
+                                _tanggal != hariIni && _tanggal != kemarin
+                                    ? formatTanggal(_tanggal)
+                                    : 'Tanggal lain',
+                              ),
                               selected:
                                   _tanggal != hariIni && _tanggal != kemarin,
                               onSelected: (_) => _pilihTanggal(),
@@ -397,9 +487,13 @@ class _FormPadiMasukPageState extends State<FormPadiMasukPage> {
                         if (state.errorText != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 6, left: 12),
-                            child: Text(state.errorText!,
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.danger)),
+                            child: Text(
+                              state.errorText!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -446,10 +540,12 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
   Widget build(BuildContext context) {
     final q = _query.trim().toLowerCase();
     final hasil = widget.daftar
-        .where((p) =>
-            q.isEmpty ||
-            p.nama.toLowerCase().contains(q) ||
-            p.kontak.contains(q))
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.nama.toLowerCase().contains(q) ||
+              p.kontak.contains(q),
+        )
         .toList();
 
     return Padding(
@@ -461,11 +557,14 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text('Pilih pelanggan',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark)),
+              child: Text(
+                'Pilih pelanggan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -494,24 +593,33 @@ class _PilihPelangganSheetState extends State<_PilihPelangganSheet> {
                         final p = hasil[i];
                         final dipilih = p.id == widget.terpilih;
                         return ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 20),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                          ),
                           leading: CircleAvatar(
                             backgroundColor: p.tipe.latar,
                             foregroundColor: p.tipe.warna,
-                            child: Text(p.inisial,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800)),
+                            child: Text(
+                              p.inisial,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
-                          title: Text(p.nama,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(p.kontak.isEmpty
-                              ? p.tipe.label
-                              : '${p.tipe.label} · ${p.kontak}'),
+                          title: Text(
+                            p.nama,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            p.kontak.isEmpty
+                                ? p.tipe.label
+                                : '${p.tipe.label} · ${p.kontak}',
+                          ),
                           trailing: dipilih
-                              ? const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.primary)
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                )
                               : null,
                           onTap: () => Navigator.pop(context, p.id),
                         );
