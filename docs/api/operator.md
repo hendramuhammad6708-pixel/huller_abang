@@ -62,12 +62,14 @@ Semua field bersifat opsional; kirim hanya yang ingin diubah.
 - Reset password: `{ "password": "sandi_baru1" }` (minimal 6 karakter, otomatis di-hash)
 - Aktif/nonaktif: `{ "aktif": false }`
 
+**Sesi operator ikut berakhir:** saat operator dinonaktifkan atau kata sandinya direset, semua token miliknya dicabut, sehingga ia langsung keluar dari aplikasi (permintaan berikutnya `401`). Mengubah nama atau username tidak mencabut token.
+
 Respons `200`: `data.operator` berisi data terbaru.
 Respons `404` jika id tidak ada atau bukan operator; `422` jika tidak valid.
 
 ## DELETE /api/operators/{id} — hapus operator
 
-Semua token milik operator ikut tercabut.
+Hapus aman (soft delete): akun tidak bisa login lagi dan semua tokennya dicabut, tetapi barisnya tetap ada agar transaksi padi masuk, log, dan pelanggan yang pernah ia buat tetap utuh. Username yang sudah dihapus tidak bisa dipakai ulang. Operator yang sekadar tidak dipakai lagi lebih baik dinonaktifkan.
 Respons `200`. Respons `404` jika id tidak ada atau bukan operator.
 
 ---

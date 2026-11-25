@@ -3,8 +3,8 @@
 Dasar alamat: `http://localhost:8000/api`
 Kirim header `Accept: application/json` (dan `Content-Type: application/json` untuk POST/PUT).
 
-**Hak akses:** Owner, kecuali `GET /api/pelanggan` yang juga boleh diakses operator (baca saja, dipakai sebagai daftar pelanggan pada form padi masuk). Semua endpoint modul ini butuh header `Authorization: Bearer <token>` (login dulu lewat `POST /api/login`).
-Tanpa token → `401`; token role operator → `403` untuk endpoint selain `GET /api/pelanggan`.
+**Hak akses:** Owner, kecuali dua endpoint yang juga boleh dipakai operator: `GET /api/pelanggan` (daftar pada form padi masuk) dan `POST /api/pelanggan` (menambah pelanggan baru saat padi masuk, **hanya tipe `petani` dan `pengepul`**). Semua endpoint modul ini butuh header `Authorization: Bearer <token>` (login dulu lewat `POST /api/login`).
+Tanpa token → `401`; token role operator → `403` untuk ubah, hapus, detail, dan riwayat transaksi.
 
 ## Format respons
 
@@ -24,7 +24,7 @@ Gagal:
 |---|---|
 | `nama` | wajib, teks, maksimal 100 karakter |
 | `kontak` | boleh kosong; jika diisi hanya angka (boleh diawali `+`), 8–15 digit |
-| `tipe_pelanggan` | wajib: `pengepul`, `petani`, atau `milik_huller` |
+| `tipe_pelanggan` | wajib: `pengepul`, `petani`, atau `milik_huller` (operator hanya boleh `pengepul` atau `petani`) |
 
 ---
 
@@ -52,7 +52,7 @@ Pelanggan yang sudah dihapus tidak ikut tampil.
 
 ## GET /api/pelanggan/{id} — detail
 
-Respons `200`: `data` berisi `id, nama, kontak, tipe_pelanggan, created_at, updated_at`.
+Respons `200`: `data` berisi `id, nama, kontak, tipe_pelanggan, created_at, updated_at`, dan `dibuat_oleh` (`{ id, nama, role }` pembuatnya, atau `null` untuk data lama) agar owner bisa meninjau pelanggan yang ditambah operator.
 Respons `404` jika id tidak ada atau sudah dihapus.
 
 ## GET /api/pelanggan/{id}/riwayat-transaksi — riwayat transaksi pelanggan
@@ -97,7 +97,11 @@ Respons `201`:
 ```json
 { "success": true, "message": "Pelanggan berhasil ditambahkan", "data": { "id": 1 } }
 ```
-Respons `422` jika isian tidak valid (lihat daftar `errors`).
+Respons `422` jika isian tidak valid (lihat daftar `errors`), termasuk:
+- operator mengirim `tipe_pelanggan: milik_huller`;
+- duplikat: sudah ada pelanggan aktif dengan nama yang sama (huruf besar/kecil diabaikan) **dan** kontak yang sama (galat pada field `nama`). Nama yang sama tanpa kontak, atau dengan kontak berbeda, diizinkan.
+
+Pembuat (owner atau operator) dicatat di kolom `dibuat_oleh`.
 
 ## PUT /api/pelanggan/{id} — ubah
 
