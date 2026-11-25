@@ -1,10 +1,12 @@
 name: frontend-flutter
 
+# Berjalan untuk setiap push dan pull request ke main/develop (lihat catatan di backend-laravel.yml)
 on:
   push:
-    branches: [feature/fe-flutter]
+    branches: [main, develop]
   pull_request:
-    branches: [feature/fe-flutter]
+    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   periksa:

@@ -1,10 +1,13 @@
 name: backend-laravel
 
+# Berjalan untuk setiap push dan pull request ke main/develop agar commit yang
+# rusak (mis. file lupa di-commit) ketahuan sebelum masuk branch utama.
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   uji:
