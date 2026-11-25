@@ -6,6 +6,8 @@ import 'features/auth/login_page.dart';
 import 'home_shell.dart';
 
 void main() {
+  // Binding harus siap sebelum memakai plugin (shared_preferences)
+  WidgetsFlutterBinding.ensureInitialized();
   // Pulihkan sesi tersimpan (token + profil) sebelum menampilkan UI
   Sesi.instance.mulai();
   runApp(const HullerAbangApp());
