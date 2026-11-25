@@ -17,8 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Versi dikunci sama dengan yang dipakai tim. Dengan "stable" tanpa versi, CI
+      # ikut Flutter terbaru: sejak 3.47 package:flutter/material.dart ditandai
+      # deprecated sehingga flutter analyze gagal di seluruh file. Naikkan versi ini
+      # bersamaan dengan migrasi kodenya.
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.44.6'
           channel: stable
           cache: true
 
